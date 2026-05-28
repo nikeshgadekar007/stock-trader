@@ -1,0 +1,19 @@
+=== Testing Data Flow ===
+MIN_PRICE: 0.5
+MAX_PRICE: 500.0
+MIN_VOLUME: 100000
+MIN_PRICE_CHANGE_PCT: 0.0
+MAX_PRICE_CHANGE_PCT: 50.0
+
+=== Testing AAPL ===
+Current Price: 311.57
+Volume: 21004044
+Previous Close: 308.33
+Change %: 1.05%
+
+=== Testing Scanner ===
+Quote: {'symbol': 'AAPL', 'current_price': 311.57, 'volume': 21004044, 'previous_close': 308.33}
+Price filter: True
+Volume filter: True
+Price change filter: True
+Overall filter: True
