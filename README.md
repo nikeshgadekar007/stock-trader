@@ -6,62 +6,91 @@ A comprehensive stock trading analysis system that combines technical analysis, 
 
 ### Features
 
-- **📊 Real-time Data**: Live stock data from Yahoo Finance
-- **🔬 Technical Analysis**: RSI, MACD, Stochastic, Bollinger Bands
-- **🧠 AI Model**: CNN-LSTM hybrid neural network (TensorFlow/Keras)
-- **📈 Backtesting**: Walk-forward validation, Monte Carlo simulation
-- **⚠️ Overfitting Prevention**: Cross-validation, parameter stability analysis
-- **📱 Web Interface**: Streamlit dashboard (mobile-friendly)
+- **Real-time Data**: Live stock data from Yahoo Finance
+- **Technical Analysis**: RSI, MACD, Stochastic, Bollinger Bands
+- **AI Model**: CNN-LSTM hybrid neural network (PyTorch)
+- **News Sentiment**: Analyze news headlines for sentiment
+- **Pattern Recognition**: Detect chart patterns (Double Top, Head & Shoulders, etc.)
+- **Risk Management**: Position sizing, Kelly Criterion, Sharpe Ratio
+- **Portfolio Tracking**: Track trades and P&L
+- **Stock Watchlist**: Monitor multiple stocks with alerts
+- **Backtesting**: Walk-forward validation, Monte Carlo simulation
+- **Web Interface**: Streamlit dashboard (mobile-friendly)
 
 ### Quick Start
 
-1. **Install dependencies**:
-```bash
-pip install -r requirements.txt
-```
-
-2. **Run the web app**:
+1. **Run the web app**:
 ```bash
 streamlit run app.py
 ```
 
-3. **Or run CLI analysis**:
+2. **Run daily scan**:
 ```bash
-python main.py
+python daily_workflow.py --scan
+```
+
+3. **Analyze single stock**:
+```bash
+python daily_workflow.py AAPL
 ```
 
 ### Project Structure
 
 ```
 stock_trader/
-├── app.py              # Streamlit web app
-├── main.py             # CLI entry point
-├── config.py           # Configuration
-├── data/              # Data fetching
-├── analysis/          # Technical indicators
-├── models/             # CNN-LSTM model
-├── backtest/           # Backtesting engine
-├── trading/            # Signal generation
-└── requirements.txt    # Dependencies
+├── app.py                    # Streamlit web app
+├── main.py                   # CLI entry point
+├── daily_workflow.py         # Daily scanning script
+├── train_pytorch.py          # AI training script
+├── analysis/
+│   ├── technical.py          # RSI, MACD, Stochastic
+│   ├── sentiment.py          # News sentiment analysis
+│   └── pattern_recognition.py # Chart patterns
+├── models/
+│   ├── cnn_lstm_pytorch.py   # PyTorch model
+│   └── best_model.pth         # Trained weights
+├── trading/
+│   ├── signals.py            # BUY/SELL signals
+│   ├── risk_management.py    # Position sizing
+│   └── portfolio.py          # Portfolio tracker
+├── scanner/
+│   └── watchlist.py         # Stock watchlist
+└── backtest/
+    └── engine.py            # Backtesting engine
 ```
 
-### Deployment
+### Daily Workflow
 
-Deploy to **Streamlit Cloud** (free):
+Run this every day before trading:
 
-1. Push to GitHub
-2. Go to https://share.streamlit.io
-3. Connect your GitHub repo
-4. Deploy!
+```bash
+python daily_workflow.py --scan
+```
 
-### Tech Stack
+This will:
+1. Scan 10 stocks from your watchlist
+2. Calculate technical indicators
+3. Analyze news sentiment
+4. Generate BUY/SELL signals
+5. Show top trading opportunities
 
-- **Python** - Core logic
-- **Streamlit** - Web interface
-- **TensorFlow/Keras** - CNN-LSTM deep learning
-- **scikit-learn** - Parameter optimization
-- **yfinance** - Stock data
-- **plotly** - Charts
+### Risk Management
+
+The system includes comprehensive risk management:
+
+- **Position Sizing**: Calculate optimal shares based on risk
+- **Kelly Criterion**: Optimal bet sizing
+- **Risk-Reward Ratio**: Grade A+ to D
+- **Value at Risk**: 95% confidence interval
+- **Max Drawdown**: Track portfolio losses
+
+### AI Model - ACTIVE
+
+The CNN-LSTM model is trained and ready!
+
+- **Training Data:** 4,207 samples from 18 stocks
+- **Best Validation Accuracy:** 74.94%
+- **Model Location:** `models/best_model.pth`
 
 ### Disclaimer
 

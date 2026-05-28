@@ -1,0 +1,173 @@
+[
+  {
+    "symbol": "AAPL",
+    "added_date": "2026-05-29T00:50:40.794226",
+    "notes": "",
+    "alert_price": null,
+    "alert_type": null,
+    "last_checked": null,
+    "last_price": null
+  },
+  {
+    "symbol": "MSFT",
+    "added_date": "2026-05-29T00:50:40.795344",
+    "notes": "",
+    "alert_price": null,
+    "alert_type": null,
+    "last_checked": null,
+    "last_price": null
+  },
+  {
+    "symbol": "GOOGL",
+    "added_date": "2026-05-29T00:50:40.796451",
+    "notes": "",
+    "alert_price": null,
+    "alert_type": null,
+    "last_checked": null,
+    "last_price": null
+  },
+  {
+    "symbol": "AMZN",
+    "added_date": "2026-05-29T00:50:40.798149",
+    "notes": "",
+    "alert_price": null,
+    "alert_type": null,
+    "last_checked": null,
+    "last_price": null
+  },
+  {
+    "symbol": "NVDA",
+    "added_date": "2026-05-29T00:50:40.799574",
+    "notes": "",
+    "alert_price": null,
+    "alert_type": null,
+    "last_checked": null,
+    "last_price": null
+  },
+  {
+    "symbol": "META",
+    "added_date": "2026-05-29T00:50:40.800650",
+    "notes": "",
+    "alert_price": null,
+    "alert_type": null,
+    "last_checked": null,
+    "last_price": null
+  },
+  {
+    "symbol": "TSLA",
+    "added_date": "2026-05-29T00:50:40.801624",
+    "notes": "",
+    "alert_price": null,
+    "alert_type": null,
+    "last_checked": null,
+    "last_price": null
+  },
+  {
+    "symbol": "JPM",
+    "added_date": "2026-05-29T00:50:40.802619",
+    "notes": "",
+    "alert_price": null,
+    "alert_type": null,
+    "last_checked": null,
+    "last_price": null
+  },
+  {
+    "symbol": "BAC",
+    "added_date": "2026-05-29T00:50:40.803633",
+    "notes": "",
+    "alert_price": null,
+    "alert_type": null,
+    "last_checked": null,
+    "last_price": null
+  },
+  {
+    "symbol": "WFC",
+    "added_date": "2026-05-29T00:50:40.804838",
+    "notes": "",
+    "alert_price": null,
+    "alert_type": null,
+    "last_checked": null,
+    "last_price": null
+  },
+  {
+    "symbol": "GS",
+    "added_date": "2026-05-29T00:50:40.806958",
+    "notes": "",
+    "alert_price": null,
+    "alert_type": null,
+    "last_checked": null,
+    "last_price": null
+  },
+  {
+    "symbol": "JNJ",
+    "added_date": "2026-05-29T00:50:40.808727",
+    "notes": "",
+    "alert_price": null,
+    "alert_type": null,
+    "last_checked": null,
+    "last_price": null
+  },
+  {
+    "symbol": "PFE",
+    "added_date": "2026-05-29T00:50:40.809889",
+    "notes": "",
+    "alert_price": null,
+    "alert_type": null,
+    "last_checked": null,
+    "last_price": null
+  },
+  {
+    "symbol": "UNH",
+    "added_date": "2026-05-29T00:50:40.811130",
+    "notes": "",
+    "alert_price": null,
+    "alert_type": null,
+    "last_checked": null,
+    "last_price": null
+  },
+  {
+    "symbol": "XOM",
+    "added_date": "2026-05-29T00:50:40.812338",
+    "notes": "",
+    "alert_price": null,
+    "alert_type": null,
+    "last_checked": null,
+    "last_price": null
+  },
+  {
+    "symbol": "CVX",
+    "added_date": "2026-05-29T00:50:40.813541",
+    "notes": "",
+    "alert_price": null,
+    "alert_type": null,
+    "last_checked": null,
+    "last_price": null
+  },
+  {
+    "symbol": "WMT",
+    "added_date": "2026-05-29T00:50:40.815175",
+    "notes": "",
+    "alert_price": null,
+    "alert_type": null,
+    "last_checked": null,
+    "last_price": null
+  },
+  {
+    "symbol": "KO",
+    "added_date": "2026-05-29T00:50:40.816424",
+    "notes": "",
+    "alert_price": null,
+    "alert_type": null,
+    "last_checked": null,
+    "last_price": null
+  },
+  {
+    "symbol": "PG",
+    "added_date": "2026-05-29T00:50:40.817627",
+    "notes": "",
+    "alert_price": null,
+    "alert_type": null,
+    "last_checked": null,
+    "last_price": null
+  }
+]
