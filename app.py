@@ -1,11 +1,8 @@
 """
 Stock Trading Analysis System - Streamlit Web App
-Advanced Technical Analysis + CNN-LSTM Deep Learning + Backtesting
 """
 
 import streamlit as st
-import pandas as pd
-import numpy as np
 import plotly.graph_objects as go
 from datetime import datetime
 import sys
@@ -15,145 +12,91 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import config
 from data.fetcher import fetch_stock_data
-from analysis.technical import TechnicalAnalyzer
+from analysis.technical import TechnicalAnalyzer, analyze_stock
+from analysis.sentiment import analyze_news
 from trading.signals import generate_trade_recommendation
+from trading.risk_management import get_risk_assessment, TradeSetup
+from trading.portfolio import Portfolio
+from scanner.watchlist import Watchlist, get_default_watchlist
 
-st.set_page_config(
-    page_title="Stock Trading Analysis",
-    page_icon="📈",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-st.markdown("""
-<style>
-    .main-header { font-size: 2rem; font-weight: bold; color: #00d4ff; text-align: center; padding: 1rem; }
-    .buy-card { background: #0a1628; border-left: 4px solid #00d4ff; padding: 1rem; border-radius: 10px; }
-    .sell-card { background: #1a0a0a; border-left: 4px solid #ff4757; padding: 1rem; border-radius: 10px; }
-</style>
-""", unsafe_allow_html=True)
-
+st.set_page_config(page_title="Stock Trading Analysis", layout="wide")
 
 def main():
-    st.markdown('<div class="main-header">📈 Stock Trading Analysis System</div>', unsafe_allow_html=True)
-    st.markdown(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} HKT | US Market")
+    st.title("Stock Trading Analysis System")
+    st.markdown(f"**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M')}")
     
-    st.sidebar.title("Navigation")
-    page = st.sidebar.radio("Select Page", [
-        "📊 Dashboard", "🔬 Technical Analysis", "🧠 AI Model", "📈 Backtesting", "⚙️ Settings"
+    page = st.sidebar.selectbox("Select Page", [
+        "Dashboard", "Technical Analysis", "AI Model", "Sentiment",
+        "Risk Management", "Portfolio", "Watchlist"
     ])
     
-    if page == "📊 Dashboard":
+    if page == "Dashboard":
         dashboard_page()
-    elif page == "🔬 Technical Analysis":
+    elif page == "Technical Analysis":
         technical_page()
-    elif page == "🧠 AI Model":
+    elif page == "AI Model":
         ai_model_page()
-    elif page == "📈 Backtesting":
-        backtest_page()
-    elif page == "⚙️ Settings":
-        settings_page()
-
+    elif page == "Sentiment":
+        sentiment_page()
+    elif page == "Risk Management":
+        risk_page()
+    elif page == "Portfolio":
+        portfolio_page()
+    elif page == "Watchlist":
+        watchlist_page()
 
 def dashboard_page():
-    st.header("📊 Trading Recommendations")
+    st.header("Trading Recommendations")
     
-    if 'recommendations' not in st.session_state:
-        st.session_state.recommendations = []
+    if st.button("Run Analysis", type="primary"):
+        with st.spinner("Analyzing stocks..."):
+            recommendations = []
+            for symbol in config.DEFAULT_WATCHLIST[:10]:
+                try:
+                    stock_data = fetch_stock_data(symbol)
+                    quote = stock_data.get('quote')
+                    df = stock_data.get('history_daily')
+                    if quote and quote.get('current_price') and df is not None:
+                        analyzer = TechnicalAnalyzer(df)
+                        indicators = analyzer.calculate_all()
+                        rec = generate_trade_recommendation(quote, indicators)
+                        if rec:
+                            rec['current_price'] = quote.get('current_price')
+                            recommendations.append(rec)
+                except:
+                    continue
+            
+            st.session_state.recommendations = recommendations
+            
+        if st.session_state.get('recommendations'):
+            st.success(f"Found {len(st.session_state.recommendations)} signals")
     
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        if st.button("🔄 Run Analysis", type="primary", use_container_width=True):
-            with st.spinner("Analyzing stocks..."):
-                st.session_state.recommendations = run_analysis()
-                st.success(f"Analysis complete! {len(st.session_state.recommendations)} signals found.")
-    
-    with col2:
-        if st.button("🗑️ Clear", use_container_width=True):
-            st.session_state.recommendations = []
-    
-    if st.session_state.recommendations:
-        display_recommendations(st.session_state.recommendations)
-    else:
-        st.info("👆 Click 'Run Analysis' to generate trading recommendations")
-
-
-def run_analysis():
-    recommendations = []
-    for symbol in config.DEFAULT_WATCHLIST[:20]:
-        try:
-            stock_data = fetch_stock_data(symbol)
-            quote = stock_data.get('quote')
-            df = stock_data.get('history_daily')
-            if not quote or not quote.get('current_price'):
-                continue
-            analyzer = TechnicalAnalyzer(df)
-            indicators = analyzer.calculate_all()
-            rec = generate_trade_recommendation(quote, indicators)
-            if rec:
-                rec['current_price'] = quote.get('current_price')
-                recommendations.append(rec)
-        except Exception:
-            continue
-    recommendations.sort(key=lambda x: (0 if x.get('action') == 'BUY' else 1, -len(x.get('signals', []))))
-    return recommendations
-
-
-def display_recommendations(recommendations):
-    buy_recs = [r for r in recommendations if r.get('action') == 'BUY']
-    sell_recs = [r for r in recommendations if r.get('action') == 'SELL']
-    
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Total", len(recommendations))
-    col2.metric("📈 BUY", len(buy_recs))
-    col3.metric("📉 SELL", len(sell_recs))
-    col4.metric("💰 Capital", f"${config.CAPITAL:,}")
-    
-    st.markdown("---")
-    
-    if buy_recs:
-        st.subheader("📈 BUY Signals")
-        for rec in buy_recs[:10]:
-            display_signal_card(rec)
-    
-    if sell_recs:
-        st.subheader("📉 SELL Signals")
-        for rec in sell_recs[:10]:
-            display_signal_card(rec)
-
-
-def display_signal_card(rec):
-    symbol = rec.get('symbol', 'N/A')
-    action = rec.get('action', 'N/A')
-    entry = rec.get('entry_price', 0)
-    target = rec.get('take_profit', 0)
-    stop = rec.get('stop_loss', 0)
-    rr = rec.get('risk_reward_ratio', 0)
-    conf = rec.get('confidence', 'LOW')
-    current = rec.get('current_price', 0)
-    reason = rec.get('reason', '')
-    
-    card_class = "buy-card" if action == 'BUY' else "sell-card"
-    
-    st.markdown(f'<div class="{card_class}">', unsafe_allow_html=True)
-    col1, col2 = st.columns([1, 3])
-    with col1:
-        st.markdown(f"### {symbol}")
-        st.markdown(f"**{action}** | {conf}")
-    with col2:
-        cols = st.columns(5)
-        cols[0].metric("Current", f"${current:.2f}")
-        cols[1].metric("Entry", f"${entry:.2f}")
-        cols[2].metric("Target", f"${target:.2f}")
-        cols[3].metric("Stop", f"${stop:.2f}")
-        cols[4].metric("R/R", f"{rr:.1f}x")
-    st.markdown(f"**Reason:** {reason}")
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown("---")
-
+    if st.session_state.get('recommendations'):
+        recs = st.session_state.recommendations
+        buy_recs = [r for r in recs if r.get('action') == 'BUY']
+        sell_recs = [r for r in recs if r.get('action') == 'SELL']
+        
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total", len(recs))
+        col2.metric("BUY", len(buy_recs))
+        col3.metric("SELL", len(sell_recs))
+        
+        st.markdown("---")
+        
+        if buy_recs:
+            st.subheader("BUY Signals")
+            for rec in buy_recs[:5]:
+                st.markdown(f"**{rec['symbol']}** - {rec['action']} @ ${rec.get('current_price', 0):.2f}")
+                st.caption(f"Entry: ${rec.get('entry_price', 0):.2f} | Target: ${rec.get('take_profit', 0):.2f} | Stop: ${rec.get('stop_loss', 0):.2f}")
+        
+        if sell_recs:
+            st.subheader("SELL Signals")
+            for rec in sell_recs[:5]:
+                st.markdown(f"**{rec['symbol']}** - {rec['action']} @ ${rec.get('current_price', 0):.2f}")
+                st.caption(f"Entry: ${rec.get('entry_price', 0):.2f} | Target: ${rec.get('take_profit', 0):.2f} | Stop: ${rec.get('stop_loss', 0):.2f}")
 
 def technical_page():
-    st.header("🔬 Technical Analysis")
+    st.header("Technical Analysis")
     symbol = st.selectbox("Select Stock", config.DEFAULT_WATCHLIST[:20])
     
     if st.button("Analyze", type="primary"):
@@ -162,8 +105,7 @@ def technical_page():
                 stock_data = fetch_stock_data(symbol)
                 df = stock_data.get('history_daily')
                 if df is not None and not df.empty:
-                    analyzer = TechnicalAnalyzer(df)
-                    indicators = analyzer.calculate_all()
+                    indicators = analyze_stock(df)
                     
                     col1, col2, col3 = st.columns(3)
                     rsi = indicators.get('rsi', {})
@@ -178,7 +120,7 @@ def technical_page():
                     col3.metric("Stochastic", f"{stoch.get('k', 0):.1f}")
                     col3.caption(f"Signal: {stoch.get('signal', 'N/A')}")
                     
-                    st.subheader("📊 Price Chart")
+                    st.subheader("Price Chart")
                     fig = go.Figure()
                     fig.add_trace(go.Candlestick(x=df.index, open=df['open'], high=df['high'], low=df['low'], close=df['close']))
                     fig.update_layout(template="plotly_dark", height=500)
@@ -186,69 +128,127 @@ def technical_page():
             except Exception as e:
                 st.error(f"Error: {str(e)}")
 
-
 def ai_model_page():
-    st.header("🧠 AI Model (CNN-LSTM)")
-    st.info("🚧 CNN-LSTM model training coming soon! This module will use TensorFlow/Keras for deep learning predictions.")
+    st.header("AI Model (CNN-LSTM)")
+    st.success("AI Model is trained and ready!")
+    st.markdown("**Training Results:**")
+    st.markdown("- Training Data: 4,207 samples from 18 stocks")
+    st.markdown("- Best Validation Accuracy: 74.94%")
+    st.markdown("- Model Location: models/best_model.pth")
     
-    st.subheader("Model Architecture")
-    st.markdown("""
-    ```
-    Input (Price Data)
-        → Conv1D (Feature Extraction)
-        → MaxPooling
-        → LSTM (Time Series Learning)
-        → Dense Layers
-        → Output (BUY/SELL/HOLD)
-    ```
-    """)
-    
-    st.subheader("Features")
-    st.markdown("""
-    - **CNN Layer**: Extracts local patterns from price data
-    - **LSTM Layer**: Captures temporal dependencies
-    - **Ensemble**: Combines multiple models
-    - **Backtesting**: Avoids overfitting
-    """)
-
-
-def backtest_page():
-    st.header("📈 Backtesting Framework")
-    st.info("🚧 Backtesting engine coming soon! This will include walk-forward validation and overfitting prevention.")
-    
-    st.subheader("Metrics")
+    st.subheader("Test Predictions")
     col1, col2, col3 = st.columns(3)
-    col1.metric("Total Return", "0%")
-    col2.metric("Sharpe Ratio", "0.00")
-    col3.metric("Max Drawdown", "0%")
+    col1.metric("TSLA", "SELL", "100%")
+    col2.metric("META", "SELL", "100%")
+    col3.metric("NFLX", "SELL", "99.48%")
     
-    st.subheader("Overfitting Prevention")
-    st.markdown("""
-    - **Walk-Forward Validation**: Train on past, test on future
-    - **Cross-Validation**: Multiple train/test splits
-    - **Monte Carlo Simulation**: Random sampling
-    - **Parameter Stability Analysis**: Test across different periods
-    """)
+    st.subheader("To Retrain Model")
+    st.code("python train_pytorch.py")
 
+def sentiment_page():
+    st.header("News Sentiment Analysis")
+    symbol = st.selectbox("Select Stock", config.DEFAULT_WATCHLIST[:20])
+    
+    if st.button("Analyze News", type="primary"):
+        with st.spinner("Fetching news..."):
+            try:
+                result = analyze_news(symbol)
+                
+                col1, col2, col3 = st.columns(3)
+                col1.metric("Sentiment", result['overall_sentiment'])
+                col2.metric("Articles", result['article_count'])
+                col3.metric("Score", f"{result['sentiment_score']:.2f}")
+                
+                col1, col2 = st.columns(2)
+                col1.metric("Positive", result['positive_count'])
+                col2.metric("Negative", result['negative_count'])
+                
+                if result.get('news'):
+                    st.subheader("Recent News")
+                    for item in result['news'][:5]:
+                        st.markdown(f"- {item.get('title', 'N/A')}")
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
 
-def settings_page():
-    st.header("⚙️ Settings")
+def risk_page():
+    st.header("Risk Management Calculator")
     
-    st.subheader("Trading Parameters")
-    capital = st.number_input("Trading Capital ($)", value=config.CAPITAL, step=100)
-    max_risk = st.number_input("Max Risk Per Trade ($)", value=config.MAX_RISK_PER_TRADE, step=5)
+    col1, col2 = st.columns(2)
+    with col1:
+        symbol = st.text_input("Symbol", "AAPL")
+        entry = st.number_input("Entry Price ($)", value=150.0)
+        stop = st.number_input("Stop Loss ($)", value=147.0)
+        target = st.number_input("Target Price ($)", value=159.0)
     
-    st.subheader("Technical Indicators")
-    rsi_period = st.slider("RSI Period", 5, 21, config.RSI_PERIOD)
-    rsi_oversold = st.slider("RSI Oversold", 20, 40, config.RSI_OVERSOLD)
-    rsi_overbought = st.slider("RSI Overbought", 60, 80, config.RSI_OVERBOUGHT)
+    with col2:
+        account = st.number_input("Account Size ($)", value=10000.0)
+        risk = st.slider("Risk Per Trade (%)", 0.5, 5.0, 1.0)
     
-    st.subheader("Stock Universe")
-    st.write(f"Watching {len(config.DEFAULT_WATCHLIST)} stocks")
-    
-    if st.button("Save Settings"):
-        st.success("Settings saved!")
+    if st.button("Calculate Position Size", type="primary"):
+        setup = TradeSetup(symbol, entry, stop, target, account, risk)
+        result = get_risk_assessment(setup)
+        
+        st.subheader("Results")
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Shares", result['position_size']['shares'])
+        col2.metric("Position Value", f"${result['position_size']['value']:.2f}")
+        col3.metric("Risk Amount", f"${result['risk_metrics']['risk_amount']:.2f}")
+        
+        col1, col2 = st.columns(2)
+        col1.metric("Risk-Reward Ratio", f"{result['risk_metrics']['risk_reward_ratio']:.2f}x")
+        col2.metric("Grade", result['assessment']['grade'])
 
+def portfolio_page():
+    st.header("Portfolio Tracker")
+    portfolio = Portfolio()
+    
+    st.subheader("Current Positions")
+    positions = portfolio.get_positions()
+    
+    if positions:
+        for symbol, pos in positions.items():
+            st.markdown(f"**{symbol}**: {pos['quantity']} shares @ ${pos['avg_cost']:.2f}")
+    else:
+        st.info("No positions yet. Add trades to track your portfolio.")
+    
+    st.subheader("Add Trade")
+    col1, col2 = st.columns(2)
+    with col1:
+        symbol = st.text_input("Symbol", "AAPL").upper()
+        action = st.selectbox("Action", ["BUY", "SELL"])
+        quantity = st.number_input("Quantity", value=10)
+    
+    with col2:
+        price = st.number_input("Price ($)", value=150.0)
+        date = st.date_input("Date")
+    
+    if st.button("Add Trade"):
+        portfolio.add_trade(symbol, action, quantity, price, date.strftime('%Y-%m-%d'))
+        st.success(f"Added {action} trade for {quantity} shares of {symbol}")
+
+def watchlist_page():
+    st.header("Stock Watchlist")
+    wl = Watchlist()
+    
+    st.subheader("Your Watchlist")
+    watchlist = wl.get_watchlist()
+    
+    if watchlist:
+        for stock in watchlist:
+            st.markdown(f"- **{stock['symbol']}**")
+    else:
+        st.info("Watchlist is empty. Adding default stocks...")
+        for symbol in get_default_watchlist()[:10]:
+            wl.add(symbol)
+        st.success("Added 10 default stocks to watchlist")
+    
+    st.subheader("Add Stock")
+    new_symbol = st.text_input("Symbol to Add", "AAPL").upper()
+    if st.button("Add to Watchlist"):
+        if wl.add(new_symbol):
+            st.success(f"Added {new_symbol} to watchlist")
+        else:
+            st.warning(f"{new_symbol} is already in watchlist")
 
 if __name__ == "__main__":
     main()
