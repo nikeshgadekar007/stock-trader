@@ -28,6 +28,14 @@ def live_trading_page():
     st_autorefresh(interval=30000, key="live_trading_refresh")
     st.header("🚀 Live Automated Trading")
     
+    # Initialize session state for deployed app
+    if 'trades_data' not in st.session_state:
+        st.session_state.trades_data = {
+            'cash': config.CAPITAL, 
+            'positions': {}, 
+            'trades': []
+        }
+    
     session = get_market_session()
     col1, col2, col3 = st.columns(3)
     
@@ -48,9 +56,13 @@ def live_trading_page():
     trades_file = f"{config.OUTPUT_DIR}/paper_trades.json"
     trades_data = {'cash': config.CAPITAL, 'positions': {}, 'trades': []}
     
+    # Try to load from local file first
     if os.path.exists(trades_file):
         with open(trades_file, 'r') as f:
             trades_data = json.load(f)
+    else:
+        # Use session state for deployed app
+        trades_data = st.session_state.trades_data
     
     st.subheader("📊 Account Summary")
     col1, col2, col3, col4 = st.columns(4)
