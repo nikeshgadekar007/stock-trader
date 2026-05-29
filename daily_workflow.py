@@ -8,6 +8,7 @@ from datetime import datetime
 from data.fetcher import fetch_stock_data
 from analysis.technical import TechnicalAnalyzer, analyze_stock
 from analysis.sentiment import analyze_news
+from analysis.intraday import get_intraday_signal, calculate_vwap_levels, get_market_session
 from trading.risk_management import get_risk_assessment, TradeSetup
 from scanner.watchlist import Watchlist, get_default_watchlist
 
@@ -186,13 +187,70 @@ def analyze_single_stock(symbol: str):
     print(f"  Articles: {news['article_count']}")
     print(f"  Positive: {news['positive_count']}, Negative: {news['negative_count']}")
 
+def analyze_intraday(symbol: str):
+    """Intraday analysis for day trading"""
+    print("=" * 60)
+    print(f"INTRADAY ANALYSIS: {symbol}")
+    print("=" * 60)
+    print(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    print(f"Market Session: {get_market_session()}")
+    print()
+    
+    stock_data = fetch_stock_data(symbol)
+    df = stock_data.get('history_daily')
+    
+    if df is None or len(df) < 50:
+        print(f"Error: Insufficient data for {symbol}")
+        return
+    
+    current_price = df['close'].iloc[-1]
+    print(f"Current Price: ${current_price:.2f}")
+    print()
+    
+    # VWAP Analysis
+    vwap_data = calculate_vwap_levels(df)
+    if vwap_data:
+        print("VWAP ANALYSIS:")
+        print(f"  VWAP: ${vwap_data['vwap']:.2f}")
+        print(f"  Position: {vwap_data['position'].upper()} VWAP")
+        print(f"  Distance: {vwap_data['distance_percent']:.2f}%")
+        print(f"  Upper Band: ${vwap_data['upper_band']:.2f}")
+        print(f"  Lower Band: ${vwap_data['lower_band']:.2f}")
+        print()
+    
+    # Intraday Signal
+    intraday = get_intraday_signal(df)
+    print("INTRADAY SIGNALS:")
+    for sig in intraday.get('details', {}).get('signals', []):
+        print(f"  - {sig}")
+    print()
+    print(f"Final Signal: {intraday['signal']} ({intraday['confidence']:.0%})")
+    print()
+    
+    # Entry/Exit for intraday
+    if vwap_data:
+        print("INTRADAY TRADE SETUP:")
+        if intraday['signal'] == 'BUY':
+            print(f"  Entry: ${current_price:.2f}")
+            print(f"  VWAP Support: ${vwap_data['vwap']:.2f}")
+            print(f"  Stop Loss: ${vwap_data['lower_band']:.2f}")
+            print(f"  Target: ${vwap_data['upper_band']:.2f}")
+        else:
+            print(f"  Entry: ${current_price:.2f}")
+            print(f"  VWAP Resistance: ${vwap_data['vwap']:.2f}")
+            print(f"  Stop Loss: ${vwap_data['upper_band']:.2f}")
+            print(f"  Target: ${vwap_data['lower_band']:.2f}")
+
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         if sys.argv[1] == '--scan':
             scan_watchlist()
+        elif sys.argv[1] == '--intraday' and len(sys.argv) > 2:
+            analyze_intraday(sys.argv[2].upper())
         else:
             analyze_single_stock(sys.argv[1].upper())
     else:
         print("Usage:")
-        print("  python daily_workflow.py --scan    # Scan watchlist")
-        print("  python daily_workflow.py AAPL     # Analyze single stock")
+        print("  python daily_workflow.py --scan        # Scan watchlist")
+        print("  python daily_workflow.py --intraday AAPL  # Intraday analysis")
+        print("  python daily_workflow.py AAPL         # Single stock analysis")

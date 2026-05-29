@@ -1,0 +1,13 @@
+Collecting websockets
+  Using cached websockets-16.0-cp314-cp314-win_amd64.whl.metadata (7.0 kB)
+Using cached websockets-16.0-cp314-cp314-win_amd64.whl (178 kB)
+Installing collected packages: websockets
+  Attempting uninstall: websockets
+    Found existing installation: websockets 10.4
+    Uninstalling websockets-10.4:
+      Successfully uninstalled websockets-10.4
+  WARNING: The script websockets.exe is installed in 'C:\Users\nikes\AppData\Local\Python\pythoncore-3.14-64\Scripts' which is not on PATH.
+  Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.
+ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+alpaca-trade-api 3.2.0 requires websockets<11,>=9.0, but you have websockets 16.0 which is incompatible.
+Successfully installed websockets-16.0

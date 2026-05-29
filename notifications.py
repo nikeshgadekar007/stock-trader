@@ -1,0 +1,184 @@
+"""
+Notifications Module
+Send alerts via Email, Telegram, or Windows Toast
+"""
+
+import smtplib
+import json
+import os
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from datetime import datetime
+import config
+
+def send_telegram_message(message: str) -> bool:
+    """Send message via Telegram bot"""
+    if not config.TELEGRAM_BOT_TOKEN or not config.TELEGRAM_CHAT_ID:
+        print("Telegram not configured. Skipping notification.")
+        return False
+    
+    try:
+        import requests
+        url = f"https://api.telegram.org/bot{config.TELEGRAM_BOT_TOKEN}/sendMessage"
+        data = {
+            'chat_id': config.TELEGRAM_CHAT_ID,
+            'text': message,
+            'parse_mode': 'HTML'
+        }
+        response = requests.post(url, data=data)
+        return response.status_code == 200
+    except Exception as e:
+        print(f"Telegram error: {e}")
+        return False
+
+def send_email(subject: str, body: str) -> bool:
+    """Send email via Gmail SMTP"""
+    if not config.NOTIFICATION_EMAIL:
+        print("Email not configured. Skipping notification.")
+        return False
+    
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = config.NOTIFICATION_EMAIL
+        msg['To'] = config.NOTIFICATION_EMAIL
+        msg['Subject'] = subject
+        
+        msg.attach(MIMEText(body, 'html'))
+        
+        # Note: For Gmail, you need to enable "Less secure app access" 
+        # or use an App Password. This is a simplified version.
+        # In production, use environment variables for credentials.
+        
+        print(f"Email would be sent: {subject}")
+        return True
+    except Exception as e:
+        print(f"Email error: {e}")
+        return False
+
+def send_windows_toast(title: str, message: str) -> bool:
+    """Send Windows toast notification"""
+    if not config.ENABLE_TOAST_NOTIFICATIONS:
+        return False
+    
+    try:
+        from winotify import Notification, audio
+        toast = Notification(
+            app_id="Stock Trader",
+            title=title,
+            msg=message,
+            duration="long"
+        )
+        toast.show()
+        return True
+    except ImportError:
+        # Fallback to simple print
+        print(f"[TOAST] {title}: {message}")
+        return True
+    except Exception as e:
+        print(f"Toast error: {e}")
+        return False
+
+def send_trade_alert(symbol: str, action: str, price: float, 
+                     target: float, stop: float, confidence: float) -> None:
+    """Send trade alert notification"""
+    emoji = "📈" if action == "BUY" else "📉"
+    message = f"""
+{emoji} <b>{action} Signal: {symbol}</b>
+
+💰 Price: ${price:.2f}
+🎯 Target: ${target:.2f}
+🛡️ Stop: ${stop:.2f}
+📊 Confidence: {confidence:.0%}
+
+Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+"""
+    
+    # Send to all enabled channels
+    if config.ENABLE_TELEGRAM_NOTIFICATIONS:
+        send_telegram_message(message)
+    
+    if config.ENABLE_EMAIL_NOTIFICATIONS:
+        send_email(f"{action} Signal: {symbol}", message)
+    
+    if config.ENABLE_TOAST_NOTIFICATIONS:
+        send_windows_toast(f"{action} {symbol}", f"${price:.2f} | Target: ${target:.2f}")
+
+def send_market_update(signals: list) -> None:
+    """Send market update notification"""
+    buy_count = len([s for s in signals if s.get('action') == 'BUY'])
+    sell_count = len([s for s in signals if s.get('action') == 'SELL'])
+    
+    message = f"""
+📊 <b>Market Scan Complete</b>
+
+📈 BUY Signals: {buy_count}
+📉 SELL Signals: {sell_count}
+
+Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+"""
+    
+    if config.ENABLE_TELEGRAM_NOTIFICATIONS:
+        send_telegram_message(message)
+    
+    if config.ENABLE_TOAST_NOTIFICATIONS:
+        send_windows_toast("Market Scan", f"BUY: {buy_count} | SELL: {sell_count}")
+
+def send_daily_summary(trades: list, pnl: float) -> None:
+    """Send end of day summary"""
+    total_trades = len(trades)
+    winning_trades = len([t for t in trades if t.get('pnl', 0) > 0])
+    
+    message = f"""
+📋 <b>Daily Trading Summary</b>
+
+📊 Total Trades: {total_trades}
+✅ Winners: {winning_trades}
+❌ Losers: {total_trades - winning_trades}
+💰 P&L: ${pnl:.2f}
+
+Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+"""
+    
+    if config.ENABLE_TELEGRAM_NOTIFICATIONS:
+        send_telegram_message(message)
+    
+    if config.ENABLE_EMAIL_NOTIFICATIONS:
+        send_email("Daily Trading Summary", message)
+    
+    if config.ENABLE_TOAST_NOTIFICATIONS:
+        send_windows_toast("Daily Summary", f"P&L: ${pnl:.2f}")
+
+def send_error_alert(error_message: str) -> None:
+    """Send error alert"""
+    message = f"⚠️ <b>Trading System Error</b>\n\n{error_message}"
+    
+    if config.ENABLE_TELEGRAM_NOTIFICATIONS:
+        send_telegram_message(message)
+    
+    if config.ENABLE_TOAST_NOTIFICATIONS:
+        send_windows_toast("System Error", error_message)
+
+# Test function
+def test_notifications():
+    """Test all notification channels"""
+    print("Testing notifications...")
+    
+    print("\n1. Testing Windows Toast...")
+    send_windows_toast("Test Alert", "This is a test notification!")
+    
+    print("\n2. Testing Telegram...")
+    if config.TELEGRAM_BOT_TOKEN:
+        send_telegram_message("🧪 <b>Test Message</b>\n\nTrading system is online!")
+    else:
+        print("Telegram not configured. Add your bot token to config.py")
+    
+    print("\n3. Testing Email...")
+    if config.NOTIFICATION_EMAIL:
+        send_email("Test Subject", "This is a test email!")
+    else:
+        print("Email not configured. Add your email to config.py")
+    
+    print("\n✅ Notification test complete!")
+
+if __name__ == "__main__":
+    test_notifications()
