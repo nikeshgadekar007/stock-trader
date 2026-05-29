@@ -49,7 +49,19 @@ def live_trading_page():
         col1.error("🔴 MARKET CLOSED")
     
     col2.metric("Session", session)
-    col3.metric("Time", datetime.now().strftime('%H:%M:%S'))
+    
+    # Show local user time using JavaScript
+    import streamlit.components.v1 as components
+    components.html("""
+    <script>
+    function showTime() {
+        document.getElementById('local_time').innerHTML = new Date().toLocaleTimeString();
+    }
+    showTime();
+    setInterval(showTime, 1000);
+    </script>
+    <div id="local_time" style="font-size: 1.5rem; font-weight: bold; color: #00ff00;">Loading...</div>
+    """, height=50)
     st.markdown("---")
     
     import json
