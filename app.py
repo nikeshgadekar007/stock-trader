@@ -50,17 +50,17 @@ def live_trading_page():
     
     col2.metric("Session", session)
     
-    # Show local user time using JavaScript
-    import streamlit.components.v1 as components
-    components.html("""
+    # Show local user time using iframe
+    st.iframe("""
+    <html><body>
+    <div id="local_time" style="font-size: 1.5rem; font-weight: bold; color: #00ff00;">Loading...</div>
     <script>
     function showTime() {
         document.getElementById('local_time').innerHTML = new Date().toLocaleTimeString();
     }
     showTime();
     setInterval(showTime, 1000);
-    </script>
-    <div id="local_time" style="font-size: 1.5rem; font-weight: bold; color: #00ff00;">Loading...</div>
+    </script></body></html>
     """, height=50)
     st.markdown("---")
     
