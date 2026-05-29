@@ -64,17 +64,9 @@ def live_trading_page():
     """, height=50)
     st.markdown("---")
     
-    import json
-    trades_file = f"{config.OUTPUT_DIR}/paper_trades.json"
-    trades_data = {'cash': config.CAPITAL, 'positions': {}, 'trades': []}
-    
-    # Try to load from local file first
-    if os.path.exists(trades_file):
-        with open(trades_file, 'r') as f:
-            trades_data = json.load(f)
-    else:
-        # Use session state for deployed app
-        trades_data = st.session_state.trades_data
+    # Use cloud database for persistence
+    from cloud_db import cloud_db
+    trades_data = cloud_db.load_trades()
     
     st.subheader("📊 Account Summary")
     col1, col2, col3, col4 = st.columns(4)
