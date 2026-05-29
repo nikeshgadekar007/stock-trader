@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from datetime import datetime
 import sys
 import os
-import time
+from streamlit_autorefresh import st_autorefresh
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -24,10 +24,10 @@ from scanner.watchlist import Watchlist, get_default_watchlist
 st.set_page_config(page_title="Stock Trading Analysis", layout="wide")
 
 def live_trading_page():
-    """Live Trading Dashboard - Real-time monitoring"""
+    """Live Trading Dashboard - Real-time monitoring with auto-refresh"""
+    st_autorefresh(interval=30000, key="live_trading_refresh")
     st.header("🚀 Live Automated Trading")
     
-    # Market Status
     session = get_market_session()
     col1, col2, col3 = st.columns(3)
     
@@ -42,10 +42,8 @@ def live_trading_page():
     
     col2.metric("Session", session)
     col3.metric("Time", datetime.now().strftime('%H:%M:%S'))
-    
     st.markdown("---")
     
-    # Load paper trading data
     import json
     trades_file = f"{config.OUTPUT_DIR}/paper_trades.json"
     trades_data = {'cash': config.CAPITAL, 'positions': {}, 'trades': []}
@@ -54,7 +52,6 @@ def live_trading_page():
         with open(trades_file, 'r') as f:
             trades_data = json.load(f)
     
-    # Account Summary
     st.subheader("📊 Account Summary")
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Cash", f"${trades_data.get('cash', 0):,.2f}")
@@ -68,14 +65,11 @@ def live_trading_page():
     
     pnl = total_value - config.CAPITAL
     col4.metric("P&L", f"${pnl:,.2f}", delta=f"{(pnl/config.CAPITAL)*100:.2f}%")
-    
     st.markdown("---")
     
-    # Open Positions
     st.subheader("📈 Open Positions")
     if positions:
         for symbol, pos in positions.items():
-            # Get current price
             try:
                 stock_data = fetch_stock_data(symbol)
                 current_price = stock_data.get('quote', {}).get('current_price', pos['avg_cost'])
@@ -97,43 +91,39 @@ def live_trading_page():
                 else:
                     col5.error(f"${pnl_value:.2f} ({pnl_pct:.1f}%)")
     else:
-        st.info("No open positions. System will auto-trade during market hours.")
-    
+        st.info("No open positions. Click 'Run Market Scan' to find opportunities.")
     st.markdown("---")
     
-    # Trade History
     st.subheader("📋 Trade History")
     trades = trades_data.get('trades', [])
     if trades:
-        for trade in trades[-5:]:  # Show last 5 trades
+        for trade in trades[-5:]:
             action = trade.get('action', '')
             emoji = "🟢 BUY" if action == "BUY" else "🔴 SELL"
             st.markdown(f"{emoji} **{trade['symbol']}** - {trade['quantity']} shares @ ${trade['price']:.2f}")
             st.caption(f"Time: {trade.get('timestamp', 'N/A')}")
     else:
         st.info("No trades yet.")
-    
     st.markdown("---")
     
-    # Control Buttons
     st.subheader("🎮 Controls")
     col1, col2 = st.columns(2)
     
-    if col1.button("🔄 Refresh Data", use_container_width=True):
+    if col1.button("📊 Run Market Scan", use_container_width=True):
+        with st.spinner("Scanning market..."):
+            try:
+                from auto_trader import AutoTrader
+                trader = AutoTrader()
+                signals = trader.run_market_scan()
+                st.success(f"Scan complete! Found {len(signals)} signals")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
+    
+    if col2.button("🔄 Refresh Data", use_container_width=True):
         st.rerun()
     
-    if col2.button("📊 Run Market Scan", use_container_width=True):
-        with st.spinner("Scanning market..."):
-            from auto_trader import AutoTrader
-            trader = AutoTrader()
-            signals = trader.run_market_scan()
-            st.success(f"Scan complete! Found {len(signals)} signals")
-            st.rerun()
-    
-    # Auto-refresh
     st.info("📌 Page auto-refreshes every 30 seconds during market hours")
-    time.sleep(30)
-    st.rerun()
 
 def main():
     st.title("Stock Trading Analysis System")
@@ -198,7 +188,6 @@ def dashboard_page():
         col1.metric("Total", len(recs))
         col2.metric("BUY", len(buy_recs))
         col3.metric("SELL", len(sell_recs))
-        
         st.markdown("---")
         
         if buy_recs:
@@ -259,9 +248,6 @@ def ai_model_page():
     col1.metric("TSLA", "SELL", "100%")
     col2.metric("META", "SELL", "100%")
     col3.metric("NFLX", "SELL", "99.48%")
-    
-    st.subheader("To Retrain Model")
-    st.code("python train_pytorch.py")
 
 def intraday_page():
     st.header("Intraday Trading Analysis")
@@ -278,7 +264,6 @@ def intraday_page():
                 if df is not None and not df.empty:
                     current_price = df['close'].iloc[-1]
                     
-                    # VWAP Analysis
                     vwap_data = calculate_vwap_levels(df)
                     if vwap_data:
                         col1, col2, col3, col4 = st.columns(4)
@@ -286,12 +271,7 @@ def intraday_page():
                         col2.metric("Position", vwap_data['position'].upper())
                         col3.metric("Distance", f"{vwap_data['distance_percent']:.1f}%")
                         col4.metric("Current", f"${current_price:.2f}")
-                        
-                        col1, col2 = st.columns(2)
-                        col1.metric("Upper Band", f"${vwap_data['upper_band']:.2f}")
-                        col2.metric("Lower Band", f"${vwap_data['lower_band']:.2f}")
                     
-                    # Intraday Signal
                     intraday = get_intraday_signal(df)
                     
                     st.subheader("Intraday Signals")
@@ -302,20 +282,6 @@ def intraday_page():
                     col1, col2 = st.columns(2)
                     col1.metric("Signal", intraday['signal'])
                     col1.caption(f"Confidence: {intraday['confidence']:.0%}")
-                    
-                    # Trade Setup
-                    if vwap_data:
-                        st.subheader("Intraday Trade Setup")
-                        if intraday['signal'] == 'BUY':
-                            col1, col2, col3 = st.columns(3)
-                            col1.metric("Entry", f"${current_price:.2f}")
-                            col2.metric("Stop Loss", f"${vwap_data['lower_band']:.2f}")
-                            col3.metric("Target", f"${vwap_data['upper_band']:.2f}")
-                        else:
-                            col1, col2, col3 = st.columns(3)
-                            col1.metric("Entry", f"${current_price:.2f}")
-                            col2.metric("Stop Loss", f"${vwap_data['upper_band']:.2f}")
-                            col3.metric("Target", f"${vwap_data['lower_band']:.2f}")
             except Exception as e:
                 st.error(f"Error: {str(e)}")
 
@@ -332,10 +298,6 @@ def sentiment_page():
                 col1.metric("Sentiment", result['overall_sentiment'])
                 col2.metric("Articles", result['article_count'])
                 col3.metric("Score", f"{result['sentiment_score']:.2f}")
-                
-                col1, col2 = st.columns(2)
-                col1.metric("Positive", result['positive_count'])
-                col2.metric("Negative", result['negative_count'])
                 
                 if result.get('news'):
                     st.subheader("Recent News")
