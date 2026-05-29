@@ -1,4 +1,8 @@
-# Firebase Setup Guide
+# Firebase Setup Guide (SECURE VERSION)
+
+## ⚠️ IMPORTANT: Never upload service account keys to public repos!
+
+### Secure Approach: Use Streamlit Secrets
 
 ## Step 1: Create Firebase Project
 
@@ -21,26 +25,19 @@
 1. Go to Project Settings (gear icon)
 2. Click "Service accounts"
 3. Click "Generate new private key"
-4. Save the JSON file as `firebase-key.json`
+4. **COPY the entire JSON content** (don't download!)
 
-## Step 4: Add to Streamlit Cloud
+## Step 4: Add to Streamlit Cloud Secrets
 
 1. Go to your Streamlit Cloud app settings
 2. Click "Secrets"
-3. Add:
+3. Add the JSON content as a secret:
    ```
-   FIREBASE_CREDENTIALS = "/mount/src/firebase-key.json"
+   FIREBASE_CREDENTIALS = {"type": "service_account", "project_id": "...", ...}
    ```
+   (Paste the entire JSON from Step 3)
 
-## Step 5: Upload Key to GitHub
-
-1. Upload `firebase-key.json` to your GitHub repo (PRIVATE repo recommended!)
-2. Add to `.gitignore`:
-   ```
-   firebase-key.json
-   ```
-
-## Step 6: Redeploy
+## Step 5: Redeploy
 
 Your app will auto-redeploy and trades will persist across all devices!
 
@@ -48,11 +45,20 @@ Your app will auto-redeploy and trades will persist across all devices!
 
 ## For Local Development
 
-Set environment variable:
-```bash
-set FIREBASE_CREDENTIALS=firebase-key.json
-```
+1. Save the JSON file locally (KEEP IT PRIVATE!)
+2. Set environment variable:
+   ```bash
+   set FIREBASE_CREDENTIALS=firebase-key.json
+   ```
+3. Run:
+   ```bash
+   python -m streamlit run app.py
+   ```
 
-Then run:
-```bash
-python -m streamlit run app.py
+---
+
+## Security Notes:
+- ✅ Streamlit Secrets are encrypted
+- ✅ Never commit keys to GitHub
+- ✅ Keep local JSON file in a secure location
+- ✅ Firebase Console shows who accessed your project

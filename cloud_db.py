@@ -23,10 +23,21 @@ class CloudDatabase:
         
         # Check for Firebase credentials
         cred_path = os.environ.get('FIREBASE_CREDENTIALS')
+        cred_json = os.environ.get('FIREBASE_CREDENTIALS_JSON')
         
-        if FIREBASE_AVAILABLE and cred_path and os.path.exists(cred_path):
+        if FIREBASE_AVAILABLE:
             try:
-                cred = credentials.Certificate(cred_path)
+                if cred_json:
+                    # Streamlit Secrets - JSON string
+                    import json
+                    cred_dict = json.loads(cred_json)
+                    cred = credentials.Certificate(cred_dict)
+                elif cred_path and os.path.exists(cred_path):
+                    # Local file
+                    cred = credentials.Certificate(cred_path)
+                else:
+                    raise Exception("No credentials found")
+                
                 firebase_admin.initialize_app(cred)
                 self.db = firestore.client()
                 self.initialized = True
