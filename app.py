@@ -23,6 +23,139 @@ from scanner.watchlist import Watchlist, get_default_watchlist
 
 st.set_page_config(page_title="Stock Trading Analysis", layout="wide")
 
+# Initialize session state
+if 'user' not in st.session_state:
+    st.session_state.user = None
+if 'notifications' not in st.session_state:
+    st.session_state.notifications = []
+if 'unread_count' not in st.session_state:
+    st.session_state.unread_count = 0
+
+def show_notification_bell():
+    """Show notification bell in sidebar"""
+    st.sidebar.markdown("---")
+    
+    # Notification bell button
+    col1, col2 = st.sidebar.columns([3, 1])
+    
+    with col1:
+        st.markdown("### 🔔 Notifications")
+    with col2:
+        if st.session_state.unread_count > 0:
+            st.markdown(f"🔴 {st.session_state.unread_count}")
+    
+    if st.button("📬 View All", use_container_width=True):
+        st.session_state.show_notifications = True
+    
+    # Show notification panel if clicked
+    if st.session_state.get('show_notifications', False):
+        st.sidebar.markdown("#### Recent Alerts")
+        
+        if st.session_state.notifications:
+            for notif in st.session_state.notifications[:5]:
+                notif_type = notif.get('type', 'info')
+                if notif_type == 'signal':
+                    emoji = "📈" if 'BUY' in notif.get('action', '') else "📉"
+                else:
+                    emoji = "ℹ️"
+                
+                st.sidebar.markdown(f"{emoji} **{notif.get('title', 'Alert')}**")
+                st.sidebar.caption(notif.get('message', '')[:50])
+        else:
+            st.sidebar.info("No notifications")
+        
+        if st.button("Close"):
+            st.session_state.show_notifications = False
+
+def login_page():
+    """Login/Registration Page"""
+    st.title("🔐 Login to Stock Trader")
+    
+    tab1, tab2 = st.tabs(["Sign In", "Sign Up"])
+    
+    with tab1:
+        email = st.text_input("Email", key="login_email")
+        password = st.text_input("Password", type="password", key="login_password")
+        
+        if st.button("Sign In", type="primary"):
+            # For demo, accept any email/password
+            if email and password:
+                st.session_state.user = {
+                    'email': email,
+                    'id': email.split('@')[0]
+                }
+                st.success("Signed in successfully!")
+                st.rerun()
+            else:
+                st.error("Please enter email and password")
+        
+        st.markdown("---")
+        st.markdown("Or sign in with:")
+        if st.button("🔵 Sign in with Google"):
+            st.info("Google Sign-in requires Firebase setup")
+    
+    with tab2:
+        new_email = st.text_input("Email", key="signup_email")
+        new_password = st.text_input("Password", type="password", key="signup_password")
+        confirm_password = st.text_input("Confirm Password", type="password")
+        
+        if st.button("Create Account", type="primary"):
+            if new_password != confirm_password:
+                st.error("Passwords do not match")
+            elif len(new_password) < 6:
+                st.error("Password must be at least 6 characters")
+            elif new_email:
+                st.success("Account created! Please sign in.")
+            else:
+                st.error("Please enter a valid email")
+
+def user_dashboard():
+    """Personal user dashboard"""
+    st.header(f"👤 Welcome, {st.session_state.user.get('email', 'User')}")
+    
+    # User stats
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Total P&L", "$0.00", "0.0%")
+    col2.metric("Win Rate", "0%", "0 trades")
+    col3.metric("Watchlist", "0 stocks")
+    col4.metric("Signals", "0")
+    
+    st.markdown("---")
+    
+    # Personal watchlist
+    st.subheader("⭐ Your Watchlist")
+    
+    if st.button("➕ Add Stock to Watchlist"):
+        st.session_state.show_add_watchlist = True
+    
+    if st.session_state.get('show_add_watchlist', False):
+        new_symbol = st.text_input("Enter Symbol", "AAPL").upper()
+        if st.button("Add"):
+            st.success(f"Added {new_symbol} to your watchlist")
+            st.session_state.show_add_watchlist = False
+    
+    st.info("Your personal watchlist will appear here")
+    
+    st.markdown("---")
+    
+    # Recent trades
+    st.subheader("📊 Your Recent Trades")
+    st.info("Your trade history will appear here")
+    
+    st.markdown("---")
+    
+    # Settings
+    st.subheader("⚙️ Settings")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        email_alerts = st.checkbox("Email Alerts", value=True)
+    with col2:
+        push_alerts = st.checkbox("Push Notifications", value=True)
+    
+    if st.button("Save Settings"):
+        st.success("Settings saved!")
+
 def live_trading_page():
     """Live Trading Dashboard - Real-time monitoring with auto-refresh"""
     st_autorefresh(interval=30000, key="live_trading_refresh")
@@ -145,13 +278,29 @@ def main():
     st.title("Stock Trading Analysis System")
     st.markdown(f"**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M')}")
     
+    # Check if user is logged in
+    if st.session_state.user is None:
+        login_page()
+        return
+    
+    # Show notification bell for logged-in users
+    show_notification_bell()
+    
+    # User dashboard option
     page = st.sidebar.selectbox("Select Page", [
-        "Dashboard", "Live Trading", "Technical Analysis", "AI Model", "Intraday",
+        "Dashboard", "User Dashboard", "Live Trading", "Technical Analysis", "AI Model", "Intraday",
         "Sentiment", "Risk Management", "Portfolio", "Watchlist"
     ])
     
+    # Logout button
+    if st.sidebar.button("Logout"):
+        st.session_state.user = None
+        st.rerun()
+    
     if page == "Dashboard":
         dashboard_page()
+    elif page == "User Dashboard":
+        user_dashboard()
     elif page == "Live Trading":
         live_trading_page()
     elif page == "Technical Analysis":
