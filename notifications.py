@@ -38,18 +38,36 @@ def send_email(subject: str, body: str) -> bool:
         return False
     
     try:
+        # Gmail SMTP settings - read from environment variable
+        smtp_server = "smtp.gmail.com"
+        smtp_port = 587
+        sender_email = config.NOTIFICATION_EMAIL
+        sender_password = os.environ.get('GMAIL_APP_PASSWORD', '')
+        
+        if not sender_password:
+            print("GMAIL_APP_PASSWORD not set. Email not sent.")
+            print("To enable email:")
+            print("1. Go to https://myaccount.google.com/security")
+            print("2. Enable 2-Factor Authentication")
+            print("3. Create App Password (App type: Mail)")
+            print("4. Set environment variable: set GMAIL_APP_PASSWORD=your_password")
+            return False
+        
         msg = MIMEMultipart()
-        msg['From'] = config.NOTIFICATION_EMAIL
-        msg['To'] = config.NOTIFICATION_EMAIL
+        msg['From'] = sender_email
+        msg['To'] = sender_email
         msg['Subject'] = subject
         
         msg.attach(MIMEText(body, 'html'))
         
-        # Note: For Gmail, you need to enable "Less secure app access" 
-        # or use an App Password. This is a simplified version.
-        # In production, use environment variables for credentials.
+        # Connect to SMTP server
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        server.sendmail(sender_email, sender_email, msg.as_string())
+        server.quit()
         
-        print(f"Email would be sent: {subject}")
+        print(f"Email sent: {subject}")
         return True
     except Exception as e:
         print(f"Email error: {e}")
