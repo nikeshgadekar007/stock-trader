@@ -47,12 +47,17 @@ def show_notification_bell():
     if st.button("📬 View All", use_container_width=True):
         st.session_state.show_notifications = True
     
+    # Generate signals button
+    if st.button("🔍 Generate Signals", use_container_width=True):
+        with st.spinner("Analyzing market..."):
+            generate_signals_for_notifications()
+    
     # Show notification panel if clicked
     if st.session_state.get('show_notifications', False):
         st.sidebar.markdown("#### Recent Alerts")
         
         if st.session_state.notifications:
-            for notif in st.session_state.notifications[:5]:
+            for notif in st.session_state.notifications[:10]:
                 notif_type = notif.get('type', 'info')
                 if notif_type == 'signal':
                     emoji = "📈" if 'BUY' in notif.get('action', '') else "📉"
@@ -60,12 +65,62 @@ def show_notification_bell():
                     emoji = "ℹ️"
                 
                 st.sidebar.markdown(f"{emoji} **{notif.get('title', 'Alert')}**")
-                st.sidebar.caption(notif.get('message', '')[:50])
+                st.sidebar.caption(notif.get('message', '')[:60])
         else:
-            st.sidebar.info("No notifications")
+            st.sidebar.info("Click 'Generate Signals' to find opportunities")
         
         if st.button("Close"):
             st.session_state.show_notifications = False
+
+
+def generate_signals_for_notifications():
+    """Generate trading signals and add to notifications"""
+    signals = []
+    
+    for symbol in config.DEFAULT_WATCHLIST[:15]:
+        try:
+            stock_data = fetch_stock_data(symbol)
+            quote = stock_data.get('quote')
+            df = stock_data.get('history_daily')
+            
+            if quote and quote.get('current_price') and df is not None:
+                analyzer = TechnicalAnalyzer(df)
+                indicators = analyzer.calculate_all()
+                rec = generate_trade_recommendation(quote, indicators)
+                
+                if rec and rec.get('confidence', 0) >= 0.6:
+                    rec['current_price'] = quote.get('current_price')
+                    signals.append(rec)
+        except:
+            continue
+    
+    # Add signals as notifications
+    st.session_state.notifications = []
+    
+    for rec in signals:
+        action = rec.get('action', 'HOLD')
+        emoji = "📈" if action == "BUY" else "📉"
+        
+        notification = {
+            'type': 'signal',
+            'title': f'{emoji} {action}: {rec["symbol"]}',
+            'message': f'Price: ${rec.get("current_price", 0):.2f}\nTarget: ${rec.get("take_profit", 0):.2f}\nStop: ${rec.get("stop_loss", 0):.2f}\nConfidence: {rec.get("confidence", 0):.0%}',
+            'action': action,
+            'symbol': rec['symbol'],
+            'price': rec.get('current_price', 0),
+            'target': rec.get('take_profit', 0),
+            'stop': rec.get('stop_loss', 0),
+            'confidence': rec.get('confidence', 0)
+        }
+        st.session_state.notifications.append(notification)
+    
+    st.session_state.unread_count = len(st.session_state.notifications)
+    st.session_state.show_notifications = True
+    
+    if signals:
+        st.success(f"Found {len(signals)} trading signals!")
+    else:
+        st.info("No strong signals found. Try again later.")
 
 def login_page():
     """Login/Registration Page"""
