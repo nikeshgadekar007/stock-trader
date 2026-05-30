@@ -126,6 +126,13 @@ def login_page():
     """Login/Registration Page"""
     st.title("🔐 Login to Stock Trader")
     
+    # Check if Firebase is configured
+    firebase_available = os.environ.get('FIREBASE_CREDENTIALS_JSON') or os.environ.get('FIREBASE_CREDENTIALS')
+    
+    if not firebase_available:
+        st.warning("⚠️ Firebase not configured. Using demo mode.")
+        st.markdown("**Demo Mode:** Any email/password will work")
+    
     tab1, tab2 = st.tabs(["Sign In", "Sign Up"])
     
     with tab1:
@@ -133,21 +140,41 @@ def login_page():
         password = st.text_input("Password", type="password", key="login_password")
         
         if st.button("Sign In", type="primary"):
-            # For demo, accept any email/password
-            if email and password:
-                st.session_state.user = {
-                    'email': email,
-                    'id': email.split('@')[0]
-                }
-                st.success("Signed in successfully!")
-                st.rerun()
-            else:
+            if not email or not password:
                 st.error("Please enter email and password")
+            else:
+                if firebase_available:
+                    # Try Firebase authentication
+                    try:
+                        from auth import firebase_auth
+                        result = firebase_auth.sign_in(email, password)
+                        if result['success']:
+                            st.session_state.user = {
+                                'email': email,
+                                'id': result['user_id']
+                            }
+                            st.success("Signed in successfully!")
+                            st.rerun()
+                        else:
+                            st.error(f"Login failed: {result.get('error', 'Unknown error')}")
+                    except Exception as e:
+                        st.error(f"Firebase error: {e}")
+                else:
+                    # Demo mode - accept any credentials
+                    st.session_state.user = {
+                        'email': email,
+                        'id': email.split('@')[0]
+                    }
+                    st.success("Signed in successfully! (Demo Mode)")
+                    st.rerun()
         
         st.markdown("---")
         st.markdown("Or sign in with:")
         if st.button("🔵 Sign in with Google"):
-            st.info("Google Sign-in requires Firebase setup")
+            if firebase_available:
+                st.info("Google Sign-in: Configure Firebase for this feature")
+            else:
+                st.info("Google Sign-in requires Firebase setup")
     
     with tab2:
         new_email = st.text_input("Email", key="signup_email")
@@ -160,7 +187,18 @@ def login_page():
             elif len(new_password) < 6:
                 st.error("Password must be at least 6 characters")
             elif new_email:
-                st.success("Account created! Please sign in.")
+                if firebase_available:
+                    try:
+                        from auth import firebase_auth
+                        result = firebase_auth.create_user(new_email, new_password)
+                        if result['success']:
+                            st.success("Account created! Please sign in.")
+                        else:
+                            st.error(f"Registration failed: {result.get('error', 'Unknown error')}")
+                    except Exception as e:
+                        st.error(f"Firebase error: {e}")
+                else:
+                    st.info("User registration requires Firebase setup")
             else:
                 st.error("Please enter a valid email")
 
