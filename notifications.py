@@ -158,6 +158,61 @@ def send_error_alert(error_message: str) -> None:
     if config.ENABLE_TOAST_NOTIFICATIONS:
         send_windows_toast("System Error", error_message)
 
+
+class NotificationService:
+    """Centralized notification service for the trading system"""
+    
+    def __init__(self):
+        self.telegram_enabled = config.ENABLE_TELEGRAM_NOTIFICATIONS
+        self.email_enabled = config.ENABLE_EMAIL_NOTIFICATIONS
+        self.toast_enabled = config.ENABLE_TOAST_NOTIFICATIONS
+    
+    def send_trade_alert(self, message: str) -> None:
+        """Send trade alert message"""
+        if self.telegram_enabled:
+            send_telegram_message(message)
+        if self.email_enabled:
+            send_email("Trade Alert", message)
+        if self.toast_enabled:
+            send_windows_toast("Trade Alert", message[:100])
+    
+    def send_daily_report(self, report: dict) -> None:
+        """Send daily report"""
+        message = f"""
+📋 <b>Daily Trading Report</b>
+
+📊 Total Trades: {report.get('total_trades', 0)}
+✅ Winners: {report.get('winners', 0)}
+❌ Losers: {report.get('losers', 0)}
+💰 P&L: ${report.get('pnl', 0):.2f}
+📈 Win Rate: {report.get('win_rate', 0):.1%}
+
+Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+"""
+        if self.telegram_enabled:
+            send_telegram_message(message)
+        if self.email_enabled:
+            send_email("Daily Trading Report", message)
+        if self.toast_enabled:
+            send_windows_toast("Daily Report", f"P&L: ${report.get('pnl', 0):.2f}")
+    
+    def send_signal_alert(self, symbol: str, action: str, price: float, 
+                         target: float, stop: float, confidence: float) -> None:
+        """Send signal alert"""
+        emoji = "📈" if action == "BUY" else "📉"
+        message = f"""
+{emoji} <b>{action} Signal: {symbol}</b>
+
+💰 Price: ${price:.2f}
+🎯 Target: ${target:.2f}
+🛡️ Stop: ${stop:.2f}
+📊 Confidence: {confidence:.0%}
+
+Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+"""
+        self.send_trade_alert(message)
+
+
 # Test function
 def test_notifications():
     """Test all notification channels"""

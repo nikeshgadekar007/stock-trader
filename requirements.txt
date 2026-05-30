@@ -25,3 +25,6 @@ firebase-admin>=7.0.0
 # NLP & Sentiment Analysis
 vaderSentiment>=3.3.0
 textblob>=0.18.0
+
+# Scheduling
+schedule>=1.2.0
