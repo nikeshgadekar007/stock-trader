@@ -21,3 +21,7 @@ requests>=2.31.0
 
 # Cloud Database
 firebase-admin>=7.0.0
+
+# NLP & Sentiment Analysis
+vaderSentiment>=3.3.0
+textblob>=0.18.0

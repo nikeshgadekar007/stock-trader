@@ -302,25 +302,106 @@ def intraday_page():
                 st.error(f"Error: {str(e)}")
 
 def sentiment_page():
-    st.header("News Sentiment Analysis")
-    symbol = st.selectbox("Select Stock", config.DEFAULT_WATCHLIST[:20])
+    st.header("📰 NLP News Trading Analysis")
+    st.markdown("Real-time sentiment analysis powered by VADER & TextBlob")
     
-    if st.button("Analyze News", type="primary"):
-        with st.spinner("Fetching news..."):
-            try:
-                result = analyze_news(symbol)
-                
-                col1, col2, col3 = st.columns(3)
-                col1.metric("Sentiment", result['overall_sentiment'])
-                col2.metric("Articles", result['article_count'])
-                col3.metric("Score", f"{result['sentiment_score']:.2f}")
-                
-                if result.get('news'):
-                    st.subheader("Recent News")
-                    for item in result['news'][:5]:
-                        st.markdown(f"- {item.get('title', 'N/A')}")
-            except Exception as e:
-                st.error(f"Error: {str(e)}")
+    # Add NLP import
+    from analysis.nlp_news import NLPNewsAnalyzer
+    
+    tab1, tab2 = st.tabs(["Single Stock", "Watchlist Scan"])
+    
+    with tab1:
+        symbol = st.selectbox("Select Stock", config.DEFAULT_WATCHLIST[:20])
+        
+        if st.button("🔍 Analyze News", type="primary"):
+            with st.spinner("Fetching and analyzing news..."):
+                try:
+                    analyzer = NLPNewsAnalyzer()
+                    result = analyzer.analyze_stock_news(symbol)
+                    
+                    # Display sentiment score
+                    sentiment = result['sentiment']
+                    recommendation = result['recommendation']
+                    impact = result['impact_score']
+                    
+                    col1, col2, col3, col4 = st.columns(4)
+                    
+                    # Sentiment indicator
+                    if sentiment['overall'] == 'POSITIVE':
+                        col1.success(f"🟢 {sentiment['overall']}")
+                    elif sentiment['overall'] == 'NEGATIVE':
+                        col1.error(f"🔴 {sentiment['overall']}")
+                    else:
+                        col1.info(f"⚪ {sentiment['overall']}")
+                    
+                    col2.metric("Score", f"{sentiment['avg_compound']:.3f}")
+                    col3.metric("Articles", sentiment['total_articles'])
+                    col4.metric("Impact", impact['level'])
+                    
+                    # Recommendation
+                    st.subheader("📊 Trading Recommendation")
+                    rec_col1, rec_col2 = st.columns([1, 2])
+                    
+                    action = recommendation['action']
+                    if 'BUY' in action:
+                        rec_col1.success(f"**{action}**")
+                    elif 'SELL' in action:
+                        rec_col1.error(f"**{action}**")
+                    else:
+                        rec_col1.info(f"**{action}**")
+                    
+                    rec_col2.markdown(f"Confidence: **{recommendation['confidence']:.0%}**")
+                    rec_col2.caption(recommendation['reasoning'])
+                    
+                    # News articles
+                    st.subheader("📰 Recent News")
+                    news = result.get('news', [])
+                    
+                    if news:
+                        for i, article in enumerate(news[:5]):
+                            with st.expander(f"📰 {article.get('title', 'N/A')[:80]}..."):
+                                st.markdown(f"**Source:** {article.get('source', 'Unknown')}")
+                                st.markdown(article.get('description', 'No description'))
+                                st.markdown(f"[Read more]({article.get('url', '#')})")
+                    else:
+                        st.info("No recent news found for this stock")
+                        
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
+    
+    with tab2:
+        st.markdown("Scan your entire watchlist for sentiment")
+        
+        if st.button("📊 Scan Watchlist", type="primary"):
+            with st.spinner("Analyzing sentiment for all stocks..."):
+                try:
+                    analyzer = NLPNewsAnalyzer()
+                    symbols = config.DEFAULT_WATCHLIST[:15]
+                    results = analyzer.scan_watchlist_sentiment(symbols)
+                    
+                    st.success(f"Scanned {len(results)} stocks")
+                    
+                    # Sort by sentiment strength
+                    buy_signals = [r for r in results if 'BUY' in r['recommendation']['action']]
+                    sell_signals = [r for r in results if 'SELL' in r['recommendation']['action']]
+                    
+                    col1, col2 = st.columns(2)
+                    col1.success(f"🟢 BUY Signals: {len(buy_signals)}")
+                    col2.error(f"🔴 SELL Signals: {len(sell_signals)}")
+                    
+                    st.markdown("---")
+                    
+                    # Show all results
+                    for result in results:
+                        sentiment = result['sentiment']
+                        recommendation = result['recommendation']
+                        
+                        emoji = "🟢" if sentiment['overall'] == 'POSITIVE' else "🔴" if sentiment['overall'] == 'NEGATIVE' else "⚪"
+                        
+                        st.markdown(f"{emoji} **{result['symbol']}** - {recommendation['action']} (Score: {sentiment['avg_compound']:.3f})")
+                        
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
 
 def risk_page():
     st.header("Risk Management Calculator")
