@@ -381,7 +381,7 @@ def main():
     
     # User dashboard option
     page = st.sidebar.selectbox("Select Page", [
-        "Dashboard", "Trade Copier", "Scalping", "User Dashboard", "Live Trading", "Technical Analysis", "AI Model", "Intraday",
+        "Dashboard", "Trade Copier", "Scalping", "Broker", "User Dashboard", "Live Trading", "Technical Analysis", "AI Model", "Intraday",
         "Sentiment", "Risk Management", "Portfolio", "Watchlist"
     ])
     
@@ -398,6 +398,9 @@ def main():
     elif page == "Scalping":
         from scalping.scalping_page import render_scalping_page
         render_scalping_page()
+    elif page == "Broker":
+        from broker_page import render_broker_page
+        render_broker_page()
     elif page == "User Dashboard":
         user_dashboard()
     elif page == "Live Trading":
