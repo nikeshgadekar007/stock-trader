@@ -389,7 +389,7 @@ def main():
     # User dashboard option
     page = st.sidebar.selectbox("Select Page", [
         "Dashboard", "Trade Copier", "Scalping", "Broker", "User Dashboard", "Live Trading", "Technical Analysis", "AI Model", "Intraday",
-        "Sentiment", "Risk Management", "Portfolio", "Watchlist"
+        "Sentiment", "Risk Management", "Portfolio", "Watchlist", "Advanced Signals"
     ])
     
     # Logout button
@@ -426,6 +426,9 @@ def main():
         portfolio_page()
     elif page == "Watchlist":
         watchlist_page()
+    elif page == "Advanced Signals":
+        from signal_dashboard import render_signal_dashboard
+        render_signal_dashboard()
 
 def dashboard_page():
     st.header("Trading Recommendations")
