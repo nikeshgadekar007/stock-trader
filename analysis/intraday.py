@@ -9,17 +9,36 @@ from typing import Dict, List
 from datetime import datetime, time
 
 def get_market_session() -> str:
-    """Get current market session (handles HKT to EST conversion)"""
+    """Get current market session - handles any timezone"""
     from datetime import timezone, timedelta
     
-    # Convert HKT to EST (HKT is UTC+8, EST is UTC-5, so HKT - 13 hours = EST)
-    hkt = timezone(timedelta(hours=8))
-    est = timezone(timedelta(hours=-5))
-    now_hkt = datetime.now(hkt)
-    now_est = now_hkt.astimezone(est)
-    current_time = now_est.time()
+    # Get current time in UTC
+    utc = timezone.utc
+    now_utc = datetime.now(utc)
     
-    # Market hours in EST
+    # Convert to EST (UTC-5) or EDT (UTC-4) depending on DST
+    # US markets: EST (UTC-5) Nov-Mar, EDT (UTC-4) Mar-Nov
+    # Simple DST check: March to November = EDT
+    month = now_utc.month
+    
+    # Determine if DST is active (US DST: second Sunday March to first Sunday November)
+    # For simplicity, use EDT (UTC-4) from March to November
+    if month >= 3 and month <= 10:
+        est_offset = timedelta(hours=-4)  # EDT
+    else:
+        est_offset = timedelta(hours=-5)  # EST
+    
+    est = timezone(est_offset)
+    now_est = now_utc.astimezone(est)
+    current_time = now_est.time()
+    current_date = now_est.date()
+    
+    # Check if weekend
+    weekday = current_date.weekday()
+    if weekday >= 5:  # Saturday or Sunday
+        return "CLOSED"
+    
+    # Market hours in EST/EDT
     market_open = time(9, 30)
     market_close = time(16, 0)
     pre_market_open = time(4, 0)
