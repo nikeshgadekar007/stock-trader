@@ -4,7 +4,6 @@ Stock Trading Analysis System - Streamlit Web App
 
 import streamlit as st
 import plotly.graph_objects as go
-from datetime import datetime
 import sys
 import os
 from streamlit_autorefresh import st_autorefresh
@@ -368,8 +367,16 @@ def live_trading_page():
     st.info("📌 Page auto-refreshes every 30 seconds during market hours")
 
 def main():
+    from utils.time_utils import get_local_time, get_us_market_time
+    
     st.title("Stock Trading Analysis System")
-    st.markdown(f"**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    
+    # Show local time and US market time
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown(f"**🕐 Your Local Time:** {get_local_time().strftime('%Y-%m-%d %H:%M:%S')}")
+    with col2:
+        st.markdown(f"**🏛️ US Market Time:** {get_us_market_time()}")
     
     # Check if user is logged in
     if st.session_state.user is None:

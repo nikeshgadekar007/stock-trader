@@ -5,17 +5,17 @@ Get EXACT trades: Symbol, Entry, Stop, Target, Size
 
 import streamlit as st
 import pandas as pd
-from datetime import datetime
 import sys
 import os
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from data.fetcher import fetch_stock_data
 from analysis.technical import TechnicalAnalyzer
 from trading.signals import generate_trade_recommendation
 from trading.risk_management import TradeSetup, get_risk_assessment
 from scalping.scalping_engine import ScalpingEngine
+from utils.time_utils import get_local_time, get_us_market_time
 import config
 
 def get_trade_copier_signals():
@@ -84,7 +84,13 @@ def render_trade_copier():
     
     # Header
     st.title("📋 Trade Copier - Your Daily Trading Plan")
-    st.markdown(f"**Last Updated:** {datetime.now().strftime('%H:%M:%S')}")
+    
+    # Show local time and US market time
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown(f"**🕐 Your Local Time:** {get_local_time().strftime('%Y-%m-%d %H:%M:%S')}")
+    with col2:
+        st.markdown(f"**🏛️ US Market Time:** {get_us_market_time()}")
     
     # Market status
     from analysis.intraday import get_market_session
