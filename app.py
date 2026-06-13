@@ -367,16 +367,24 @@ def live_trading_page():
     st.info("📌 Page auto-refreshes every 30 seconds during market hours")
 
 def main():
-    from utils.time_utils import get_local_time, get_us_market_time
+    from utils.time_utils import get_local_time, get_us_market_time, get_hk_time, get_hk_market_time
     
     st.title("Stock Trading Analysis System")
     
-    # Show local time and US market time
-    col1, col2 = st.columns(2)
+    # Show all timezones prominently
+    col1, col2, col3 = st.columns(3)
     with col1:
-        st.markdown(f"**🕐 Your Local Time:** {get_local_time().strftime('%Y-%m-%d %H:%M:%S')}")
+        st.success(f"🇭🇰 **Hong Kong Time:** {get_hk_time()}")
     with col2:
-        st.markdown(f"**🏛️ US Market Time:** {get_us_market_time()}")
+        st.info(f"🇺🇸 **US Market Time:** {get_us_market_time()}")
+    with col3:
+        hk_session = get_hk_market_time()
+        if "OPEN" in hk_session:
+            st.success(hk_session)
+        elif "CLOSED" in hk_session:
+            st.error(hk_session)
+        else:
+            st.warning(hk_session)
     
     # Check if user is logged in
     if st.session_state.user is None:
@@ -388,8 +396,8 @@ def main():
     
     # User dashboard option
     page = st.sidebar.selectbox("Select Page", [
-        "Dashboard", "Trade Copier", "Scalping", "Broker", "User Dashboard", "Live Trading", "Technical Analysis", "AI Model", "Intraday",
-        "Sentiment", "Risk Management", "Portfolio", "Watchlist", "Advanced Signals"
+        "Dashboard", "Daily Workflow", "Trade Copier", "Scalping", "Broker", "User Dashboard", "Live Trading", "Technical Analysis", "AI Model", "Intraday",
+        "Sentiment", "Risk Management", "Portfolio", "Watchlist", "Advanced Signals", "Backtesting"
     ])
     
     # Logout button
@@ -429,6 +437,12 @@ def main():
     elif page == "Advanced Signals":
         from signal_dashboard import render_signal_dashboard
         render_signal_dashboard()
+    elif page == "Backtesting":
+        from backtesting_page import render_backtesting_page
+        render_backtesting_page()
+    elif page == "Daily Workflow":
+        from daily_workflow import render_daily_workflow
+        render_daily_workflow()
 
 def dashboard_page():
     st.header("Trading Recommendations")

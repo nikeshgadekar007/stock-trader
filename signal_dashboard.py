@@ -1,136 +1,250 @@
 """Advanced Signal Dashboard"""
 import streamlit as st
-import yfinance as yf
 from analysis.advanced_signals import AdvancedSignalEngine
-from datetime import datetime
 
 def render_signal_dashboard():
     st.header("📊 Advanced Intraday Signal Generator")
     
-    # Symbol input
+    if 'signals_analyzed' not in st.session_state:
+        st.session_state.signals_analyzed = False
+        st.session_state.buy_signals = []
+        st.session_state.hold_signals = []
+        st.session_state.sell_signals = []
+        st.session_state.error_symbols = []
+    
+    st.subheader("💰 Trading Capital")
+    col0, col1 = st.columns([2, 3])
+    with col0:
+        trading_capital = st.number_input("Your Trading Capital ($)", value=10000.0, min_value=100.0, help="Total capital you have for trading", key="trading_capital")
+    with col1:
+        max_risk_pct = st.slider("Max Risk Per Trade (%)", 0.5, 5.0, 2.0, help="Maximum % of capital you risk per trade", key="max_risk_pct")
+    
+    max_risk_amount = trading_capital * (max_risk_pct / 100)
+    st.info(f"📌 Max Risk Per Trade: ${max_risk_amount:.2f} ({max_risk_pct}% of ${trading_capital:,.2f})")
+    
+    st.markdown("---")
+    
     col1, col2 = st.columns([3, 1])
     with col1:
-        symbols_input = st.text_input("Enter Stock Symbols (comma separated)", "AAPL, TSLA, NVDA, MSFT, AMZN", help="US Stock symbols")
+        symbols_input = st.text_input("Enter Stock Symbols (comma separated)", "AAPL, TSLA, NVDA, MSFT, AMZN, GOOGL, META", help="US Stock symbols", key="symbols_input")
     with col2:
-        analyze_btn = st.button("🔍 Analyze", type="primary")
+        analyze_btn = st.button("🔍 Analyze", type="primary", key="analyze_btn")
     
     symbols = [s.strip().upper() for s in symbols_input.split(",") if s.strip()]
     
     if analyze_btn and symbols:
         engine = AdvancedSignalEngine()
+        all_signals = []
+        error_symbols = []
         
-        for symbol in symbols:
-            with st.container():
-                st.markdown("---")
+        with st.spinner("Analyzing stocks..."):
+            for symbol in symbols:
                 signal = engine.generate_signal(symbol)
-                
                 if 'error' in signal:
-                    st.error(f"❌ {symbol}: {signal['error']}")
-                    continue
-                
-                # Signal header
-                action = signal['action']
-                confidence = signal['confidence']
-                
-                if action == "BUY":
-                    color = "green"
-                    emoji = "🟢"
-                elif action == "SELL":
-                    color = "red"
-                    emoji = "🔴"
+                    error_symbols.append((symbol, signal['error']))
                 else:
-                    color = "gray"
-                    emoji = "⚪"
-                
-                st.markdown(f"## {emoji} {symbol} - **{action}** ({confidence:.1f}% confidence)")
-                
-                # Price info
-                col1, col2, col3, col4 = st.columns(4)
-                with col1:
-                    st.metric("Current Price", f"${signal['current_price']:.2f}")
-                with col2:
-                    st.metric("Entry", f"${signal['entry']:.2f}")
-                with col3:
-                    st.metric("Stop Loss", f"${signal['stop']:.2f}", delta=f"{((signal['stop']-signal['current_price'])/signal['current_price']*100):.2f}%")
-                with col4:
-                    st.metric("Target", f"${signal['target1']:.2f}", delta=f"{((signal['target1']-signal['current_price'])/signal['current_price']*100):.2f}%")
-                
-                # Detailed analysis
-                with st.expander("📈 Detailed Analysis", expanded=True):
-                    tab1, tab2, tab3, tab4 = st.tabs(["Timeframe", "Patterns", "Momentum", "Volume"])
-                    
-                    with tab1:
-                        st.subheader("Multi-Timeframe Confluence")
-                        confluence = signal['confluence']
-                        col1, col2, col3 = st.columns(3)
-                        with col1:
-                            st.metric("Confluence Score", f"{confluence['confluence_pct']:.1f}%")
-                        with col2:
-                            st.metric("Bullish Timeframes", confluence['bullish_count'])
-                        with col3:
-                            st.metric("Bearish Timeframes", confluence['bearish_count'])
-                        
-                        if confluence['aligned']:
-                            st.success("✅ ALL TIMEFRAMES ALIGNED!")
-                        
-                        st.write("**Timeframe Scores:**")
-                        for tf, score in confluence['scores'].items():
-                            bar_color = "green" if score > 0 else "red"
-                            st.write(f"{tf}: {'+' if score > 0 else ''}{score}")
-                    
-                    with tab2:
-                        st.subheader("Pattern Recognition")
-                        patterns = signal['patterns']
-                        st.write(f"**Patterns Detected:** {len(patterns['patterns'])}")
-                        for p in patterns['patterns']:
-                            st.write(f"• {p}")
-                        st.write(f"**Pattern Score:** {patterns['score']}")
-                    
-                    with tab3:
-                        st.subheader("Momentum Matrix")
-                        momentum = signal['momentum']
-                        if momentum:
-                            indicators = momentum['indicators']
-                            col1, col2, col3 = st.columns(3)
-                            with col1:
-                                st.metric("RSI(14)", f"{indicators['rsi_14']:.1f}")
-                                st.metric("MACD", f"{indicators['macd']:.2f}")
-                            with col2:
-                                st.metric("Stochastic K", f"{indicators['stoch_k']:.1f}")
-                                st.metric("Williams %R", f"{indicators['williams_r']:.1f}")
-                            with col3:
-                                st.metric("CCI", f"{indicators['cci']:.1f}")
-                                st.metric("Aroon", f"{indicators['aroon_up']:.0f}/{indicators['aroon_down']:.0f}")
-                            
-                            st.write(f"**Direction:** {momentum['direction']}")
-                            st.write(f"**Momentum Score:** {momentum['momentum_score']:.1f}")
-                            st.write(f"Bullish: {momentum['bullish_count']}/6 | Bearish: {momentum['bearish_count']}/6")
-                    
-                    with tab4:
-                        st.subheader("Volume Analysis")
-                        volume = signal['volume']
-                        if volume:
-                            col1, col2, col3 = st.columns(3)
-                            with col1:
-                                st.metric("Current Volume", f"{volume['current_volume']:,.0f}")
-                            with col2:
-                                st.metric("Avg Volume", f"{volume['avg_volume']:,.0f}")
-                            with col3:
-                                st.metric("Vol Ratio", f"{volume['vol_ratio']:.2f}x")
-                            
-                            if volume['volume_surge']:
-                                st.warning("⚠️ VOLUME SURGE DETECTED!")
-                            if volume['above_vwap']:
-                                st.success("✅ Price above VWAP")
-                            else:
-                                st.error("❌ Price below VWAP")
-                
-                # Risk/Reward
-                risk = abs(signal['entry'] - signal['stop'])
-                reward = abs(signal['target1'] - signal['entry'])
-                rr_ratio = reward / risk if risk > 0 else 0
-                
-                st.info(f"💰 Risk/Reward Ratio: {rr_ratio:.2f}x | Max Risk: ${risk:.2f} | Max Reward: ${reward:.2f}")
+                    all_signals.append(signal)
+        
+        st.session_state.error_symbols = error_symbols
+        st.session_state.buy_signals = sorted([s for s in all_signals if s['action'] == 'BUY'], key=lambda x: x['confidence'], reverse=True)
+        st.session_state.hold_signals = sorted([s for s in all_signals if s['action'] == 'HOLD'], key=lambda x: x['confidence'], reverse=True)
+        st.session_state.sell_signals = sorted([s for s in all_signals if s['action'] == 'SELL'], key=lambda x: x['confidence'], reverse=True)
+        st.session_state.signals_analyzed = True
+        
+        for signal in st.session_state.buy_signals:
+            key = f"amount_{signal['symbol']}"
+            if key not in st.session_state:
+                st.session_state[key] = 500.0
+    
+    for symbol, error in st.session_state.error_symbols:
+        st.error(f"❌ {symbol}: {error}")
+    
+    col1, col2, col3 = st.columns(3)
+    col1.success(f"🟢 BUY: {len(st.session_state.buy_signals)}")
+    col2.info(f"⚪ HOLD: {len(st.session_state.hold_signals)}")
+    col3.error(f"🔴 SELL: {len(st.session_state.sell_signals)}")
+    
+    st.markdown("---")
+    
+    tab1, tab2, tab3 = st.tabs(["🟢 BUY Signals", "⚪ HOLD Signals", "🔴 SELL Signals"])
+    
+    with tab1:
+        if st.session_state.buy_signals:
+            for rank, signal in enumerate(st.session_state.buy_signals, 1):
+                _render_signal_card(signal, rank, "BUY", trading_capital, max_risk_amount)
+        else:
+            st.info("No BUY signals found. Click 'Analyze' to scan stocks.")
+    
+    with tab2:
+        if st.session_state.hold_signals:
+            for rank, signal in enumerate(st.session_state.hold_signals, 1):
+                _render_signal_card(signal, rank, "HOLD", trading_capital, max_risk_amount)
+        else:
+            st.info("No HOLD signals found")
+    
+    with tab3:
+        if st.session_state.sell_signals:
+            for rank, signal in enumerate(st.session_state.sell_signals, 1):
+                _render_signal_card(signal, rank, "SELL", trading_capital, max_risk_amount)
+        else:
+            st.info("No SELL signals found")
 
-if __name__ == "__main__":
-    render_signal_dashboard()
+
+def _render_signal_card(signal, rank, action_type, trading_capital=10000, max_risk_amount=200):
+    action = signal['action']
+    confidence = signal['confidence']
+    
+    emoji = "🟢" if action == "BUY" else "🔴" if action == "SELL" else "⚪"
+    
+    st.markdown(f"### {emoji} #{rank} {signal['symbol']} - **{action}** ({confidence:.1f}% confidence)")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Current Price", f"${signal['current_price']:.2f}")
+    with col2:
+        st.metric("Entry", f"${signal['entry']:.2f}")
+    with col3:
+        st.metric("Stop Loss", f"${signal['stop']:.2f}")
+    with col4:
+        st.metric("Target", f"${signal['target1']:.2f}")
+    
+    risk = abs(signal['entry'] - signal['stop'])
+    reward = abs(signal['target1'] - signal['entry'])
+    rr_ratio = reward / risk if risk > 0 else 0
+    atr = signal.get('atr', 0)
+    
+    st.info(f"💰 Risk/Reward: {rr_ratio:.2f}x | ATR: ${atr:.2f}")
+    
+    if action == "BUY":
+        st.markdown("#### 📊 Position Size Calculator")
+        
+        amount_key = f"amount_{signal['symbol']}"
+        if amount_key not in st.session_state:
+            st.session_state[amount_key] = 500.0
+        
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            # Ensure value doesn't exceed max_value
+            safe_value = min(st.session_state[amount_key], trading_capital)
+            amount_usd = st.number_input(
+                f"How much to invest in {signal['symbol']}? ($)",
+                min_value=0.0,
+                max_value=float(trading_capital),
+                value=safe_value,
+                step=50.0,
+                key=amount_key
+            )
+        
+        current_price = signal['current_price']
+        stop_loss = signal['stop']
+        risk_per_share = current_price - stop_loss
+        
+        shares = int(amount_usd / current_price)
+        total_cost = shares * current_price
+        actual_risk = shares * risk_per_share
+        risk_pct_of_capital = (actual_risk / trading_capital) * 100
+        
+        max_shares_by_risk = int(max_risk_amount / risk_per_share) if risk_per_share > 0 else 0
+        max_amount_by_risk = max_shares_by_risk * current_price
+        
+        with col2:
+            st.metric("Max Risk", f"${max_risk_amount:.2f}")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Shares to Buy", f"{shares}")
+        with col2:
+            st.metric("Total Cost", f"${total_cost:.2f}")
+        with col3:
+            st.metric("Actual Risk", f"${actual_risk:.2f}")
+        with col4:
+            risk_status = "✅ Safe" if actual_risk <= max_risk_amount else "⚠️ Too High"
+            st.metric("Risk Status", risk_status)
+        
+        if actual_risk > max_risk_amount:
+            st.error(f"⚠️ WARNING: Risk ${actual_risk:.2f} exceeds your limit of ${max_risk_amount:.2f}!")
+            st.info(f"💡 Suggested: Invest max ${max_amount_by_risk:.2f} ({max_shares_by_risk} shares)")
+        else:
+            st.success(f"✅ Risk ${actual_risk:.2f} is within your ${max_risk_amount:.2f} limit ({risk_pct_of_capital:.2f}% of capital)")
+        
+        potential_profit = shares * (signal['target1'] - current_price)
+        profit_pct = (potential_profit / total_cost) * 100 if total_cost > 0 else 0
+        st.info(f"📈 Potential Profit: ${potential_profit:.2f} ({profit_pct:.1f}% return)")
+    
+    with st.expander("📊 Detailed Analysis"):
+        tab1, tab2, tab3, tab4 = st.tabs(["Timeframe", "Patterns", "Momentum", "Volume"])
+        
+        with tab1:
+            st.subheader("Multi-Timeframe Confluence")
+            confluence = signal.get('confluence', {})
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Confluence Score", f"{confluence.get('confluence_pct', 0):.1f}%")
+            with col2:
+                st.metric("Bullish Timeframes", confluence.get('bullish_count', 0))
+            with col3:
+                st.metric("Bearish Timeframes", confluence.get('bearish_count', 0))
+            
+            if confluence.get('aligned', False):
+                st.success("✅ ALL TIMEFRAMES ALIGNED!")
+            
+            st.write("**Timeframe Scores:**")
+            scores = confluence.get('scores', {})
+            for tf, score in scores.items():
+                bar = "🟢" if score > 0 else "🔴"
+                st.write(f"{tf}: {bar} {'+' if score > 0 else ''}{score}")
+        
+        with tab2:
+            st.subheader("Pattern Recognition")
+            patterns = signal.get('patterns', {})
+            pattern_list = patterns.get('patterns', [])
+            st.write(f"**Patterns Detected:** {len(pattern_list)}")
+            for p in pattern_list:
+                emoji = "🟢" if "BULLISH" in p or "HIGHER" in p else "🔴" if "BEARISH" in p or "LOWER" in p else "⚪"
+                st.write(f"{emoji} {p}")
+            st.write(f"**Pattern Score:** {patterns.get('score', 0)}")
+        
+        with tab3:
+            st.subheader("Momentum Matrix (10 Indicators)")
+            momentum = signal.get('momentum', {})
+            indicators = momentum.get('indicators', {})
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("RSI(14)", f"{indicators.get('rsi_14', 0):.1f}")
+                st.metric("MACD", f"{indicators.get('macd', 0):.2f}")
+                st.metric("MFI", f"{indicators.get('mfi', 0):.1f}")
+            with col2:
+                st.metric("Stochastic K", f"{indicators.get('stoch_k', 0):.1f}")
+                st.metric("Williams %R", f"{indicators.get('williams_r', 0):.1f}")
+                st.metric("ROC", f"{indicators.get('roc', 0):.2f}%")
+            with col3:
+                st.metric("CCI", f"{indicators.get('cci', 0):.1f}")
+                st.metric("Aroon", f"{indicators.get('aroon_up', 0):.0f}/{indicators.get('aroon_down', 0):.0f}")
+                st.metric("ADX", f"{indicators.get('adx', 0):.1f}")
+            
+            st.write(f"**Direction:** {momentum.get('direction', 'N/A')}")
+            st.write(f"**Momentum Score:** {momentum.get('momentum_score', 0):.1f}")
+            st.write(f"🟢 Bullish: {momentum.get('bullish_count', 0)}/10 | 🔴 Bearish: {momentum.get('bearish_count', 0)}/10")
+            
+            # SuperTrend
+            st.write(f"**SuperTrend:** ${indicators.get('supertrend', 0):.2f} ({'↑ BULLISH' if indicators.get('supertrend_dir', 0) > 0 else '↓ BEARISH'})")
+        
+        with tab4:
+            st.subheader("Volume Analysis")
+            volume = signal.get('volume', {})
+            if volume:
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Current Volume", f"{volume.get('current_volume', 0):,.0f}")
+                with col2:
+                    st.metric("Avg Volume", f"{volume.get('avg_volume', 0):,.0f}")
+                with col3:
+                    st.metric("Vol Ratio", f"{volume.get('vol_ratio', 0):.2f}x")
+                
+                if volume.get('volume_surge', False):
+                    st.warning("⚠️ VOLUME SURGE DETECTED!")
+                if volume.get('above_vwap', False):
+                    st.success("✅ Price above VWAP")
+                else:
+                    st.error("❌ Price below VWAP")

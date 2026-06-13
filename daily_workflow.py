@@ -1,256 +1,225 @@
 """
-Daily Trading Workflow Script
-Run this every day before trading
+Daily Trading Workflow - Step by Step Guide
 """
-
-import sys
+import streamlit as st
 from datetime import datetime
-from data.fetcher import fetch_stock_data
-from analysis.technical import TechnicalAnalyzer, analyze_stock
-from analysis.sentiment import analyze_news
-from analysis.intraday import get_intraday_signal, calculate_vwap_levels, get_market_session
-from trading.risk_management import get_risk_assessment, TradeSetup
-from scanner.watchlist import Watchlist, get_default_watchlist
 
-def get_signal_from_indicators(indicators: dict) -> dict:
-    """Generate signal from technical indicators"""
-    rsi = indicators.get('rsi', {}).get('rsi', 50)
-    macd_trend = indicators.get('macd', {}).get('trend', 'neutral')
-    stoch_signal = indicators.get('stochastic', {}).get('signal', 'neutral')
+def render_daily_workflow():
+    st.header("📋 Daily Trading Workflow")
     
-    buy_signals = 0
-    sell_signals = 0
+    # Market status
+    from analysis.intraday import get_market_session
+    session = get_market_session()
     
-    if rsi < 30:
-        buy_signals += 1
-    elif rsi > 70:
-        sell_signals += 1
-    
-    if macd_trend == 'bullish':
-        buy_signals += 1
-    elif macd_trend == 'bearish':
-        sell_signals += 1
-    
-    if stoch_signal == 'oversold':
-        buy_signals += 1
-    elif stoch_signal == 'overbought':
-        sell_signals += 1
-    
-    total = buy_signals + sell_signals
-    if total == 0:
-        return {'signal': 'HOLD', 'confidence': 0.5, 'rsi': rsi}
-    
-    if buy_signals > sell_signals:
-        confidence = buy_signals / total
-        if buy_signals >= 3:
-            return {'signal': 'STRONG_BUY', 'confidence': confidence, 'rsi': rsi}
-        return {'signal': 'BUY', 'confidence': confidence, 'rsi': rsi}
-    elif sell_signals > buy_signals:
-        confidence = sell_signals / total
-        if sell_signals >= 3:
-            return {'signal': 'STRONG_SELL', 'confidence': confidence, 'rsi': rsi}
-        return {'signal': 'SELL', 'confidence': confidence, 'rsi': rsi}
+    col1, col2, col3 = st.columns(3)
+    if session == "REGULAR_MARKET":
+        col1.success("🟢 MARKET OPEN")
+    elif session == "PRE_MARKET":
+        col1.warning("🟡 PRE-MARKET")
+    elif session == "AFTER_HOURS":
+        col1.info("🔵 AFTER HOURS")
     else:
-        return {'signal': 'HOLD', 'confidence': 0.5, 'rsi': rsi}
-
-def scan_watchlist():
-    """Scan all stocks in watchlist"""
-    print("=" * 60)
-    print("DAILY STOCK SCANNER")
-    print("=" * 60)
-    print(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-    print()
+        col1.error("🔴 MARKET CLOSED")
     
-    wl = Watchlist()
-    symbols = get_default_watchlist()
+    col2.write(f"Session: {session}")
+    col3.write(f"Time: {datetime.now().strftime('%H:%M:%S')}")
     
-    if not wl.get_watchlist():
-        for symbol in symbols:
-            wl.add(symbol)
+    st.markdown("---")
     
-    results = []
+    # Step-by-step workflow
+    st.subheader("🎯 Your Trading Checklist")
     
-    for symbol in symbols[:10]:
-        try:
-            print(f"Analyzing {symbol}...")
-            stock_data = fetch_stock_data(symbol)
-            df = stock_data.get('history_daily')
-            
-            if df is None or len(df) < 50:
-                print(f"  Skipping {symbol} - insufficient data")
-                continue
-            
-            indicators = analyze_stock(df)
-            signal = get_signal_from_indicators(indicators)
-            news = analyze_news(symbol)
-            
-            if signal['signal'] in ['BUY', 'STRONG_BUY'] and news['overall_sentiment'] == 'POSITIVE':
-                final_signal = 'STRONG_BUY'
-            elif signal['signal'] in ['SELL', 'STRONG_SELL'] and news['overall_sentiment'] == 'NEGATIVE':
-                final_signal = 'STRONG_SELL'
-            else:
-                final_signal = signal['signal']
-            
-            results.append({
-                'symbol': symbol,
-                'signal': final_signal,
-                'confidence': signal['confidence'],
-                'news_sentiment': news['overall_sentiment'],
-                'price': df['close'].iloc[-1] if 'close' in df.columns else 0
-            })
-            
-            print(f"  Signal: {final_signal} ({signal['confidence']:.0%})")
-            print(f"  News: {news['overall_sentiment']}")
-            print()
-            
-        except Exception as e:
-            print(f"  Error analyzing {symbol}: {e}")
-            continue
+    # Step 1: Pre-market
+    with st.expander("📌 STEP 1: Pre-Market Setup (8:00-9:30 AM)", expanded=True):
+        st.markdown("""
+        **Before market opens, do this:**
+        1. Open app at http://localhost:8501
+        2. Go to **Advanced Signals** page
+        3. Enter stocks: `AAPL, MSFT, GOOGL, AMZN, NVDA, TSLA`
+        4. Click **Analyze** to get signals
+        5. Note top BUY signals with prices
+        """)
+        
+        if st.button("✅ I've completed pre-market setup"):
+            st.session_state.step1_done = True
+        
+        if st.session_state.get('step1_done'):
+            st.success("✓ Pre-market setup complete!")
     
-    buy_signals = [r for r in results if r['signal'] in ['BUY', 'STRONG_BUY']]
-    sell_signals = [r for r in results if r['signal'] in ['SELL', 'STRONG_SELL']]
+    # Step 2: Wait for market open
+    with st.expander("📌 STEP 2: Wait for Market Open (9:30 AM)"):
+        st.markdown("""
+        **After market opens:**
+        1. Wait 15-30 minutes for market to settle
+        2. Check if price is near your entry price
+        3. Only enter if price is AT or BELOW entry
+        4. Never chase a stock that's already moved up
+        """)
+        
+        if st.button("✅ Market opened, waiting for entry"):
+            st.session_state.step2_done = True
     
-    print("=" * 60)
-    print("TOP BUY SIGNALS")
-    print("=" * 60)
-    for r in sorted(buy_signals, key=lambda x: x['confidence'], reverse=True)[:5]:
-        print(f"  {r['symbol']}: {r['signal']} ({r['confidence']:.0%}) - ${r['price']:.2f}")
+    # Step 3: Enter trade
+    with st.expander("📌 STEP 3: Enter Trade"):
+        st.markdown("""
+        **When you find your entry:**
+        
+        | Field | Action |
+        |-------|--------|
+        | Entry Price | Enter ONLY if at/below signal price |
+        | Stop Loss | Set immediately - App gives you this |
+        | Target 1 | Set TP1 - App gives you this |
+        | Target 2 | Set TP2 - App gives you this |
+        
+        **Position Size Formula:**
+        ```
+        Risk Amount = Total Capital × 2%
+        Risk Per Share = Entry - Stop
+        Shares to Buy = Risk Amount ÷ Risk Per Share
+        ```
+        """)
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            capital = st.number_input("Your Capital ($)", value=10000, key="trade_capital")
+        with col2:
+            risk_pct = st.slider("Risk Per Trade (%)", 1.0, 5.0, 2.0, key="trade_risk")
+        
+        risk_amount = capital * (risk_pct / 100)
+        st.info(f"💰 Max Risk Per Trade: ${risk_amount:,.2f}")
+        
+        if st.button("✅ Trade entered with stop loss set"):
+            st.session_state.step3_done = True
     
-    print()
-    print("=" * 60)
-    print("TOP SELL SIGNALS")
-    print("=" * 60)
-    for r in sorted(sell_signals, key=lambda x: x['confidence'], reverse=True)[:5]:
-        print(f"  {r['symbol']}: {r['signal']} ({r['confidence']:.0%}) - ${r['price']:.2f}")
+    # Step 4: Monitor trade
+    with st.expander("📌 STEP 4: Monitor Trade"):
+        st.markdown("""
+        **During the trade:**
+        
+        | Scenario | Action |
+        |----------|--------|
+        | Price hits Target 1 | Sell 50% of shares |
+        | Price hits Target 2 | Sell remaining shares |
+        | Price hits Stop Loss | Exit immediately |
+        | 3:00 PM arrives | Close all positions |
+        | News event | Exit if major announcement |
+        
+        **REMEMBER:**
+        - Never move your stop loss down
+        - Let winners run, cut losers quick
+        - Take partial profits at TP1
+        """)
+        
+        if st.button("✅ Trade monitoring complete"):
+            st.session_state.step4_done = True
     
-    print()
-    print("=" * 60)
-    print("READY TO TRADE")
-    print("=" * 60)
+    # Step 5: Post-market review
+    with st.expander("📌 STEP 5: Post-Market Review (3:00 PM+)"):
+        st.markdown("""
+        **After market closes:**
+        
+        1. Go to **Portfolio** page
+        2. Review all closed trades
+        3. Calculate P&L for the day
+        4. Write down what worked and what didn't
+        5. Update watchlist for tomorrow
+        
+        **Daily Journal Entry:**
+        - Date: ___________
+        - Trades taken: ___
+        - Win/Loss: ___
+        - What went right: ___________
+        - What to improve: ___________
+        """)
+        
+        if st.button("✅ Daily review complete"):
+            st.session_state.step5_done = True
     
-    if buy_signals:
-        top_buy = sorted(buy_signals, key=lambda x: x['confidence'], reverse=True)[0]
-        print(f"\nTOP PICK: {top_buy['symbol']}")
-        print(f"  Signal: {top_buy['signal']}")
-        print(f"  Confidence: {top_buy['confidence']:.0%}")
-        print(f"  News Sentiment: {top_buy['news_sentiment']}")
-        print(f"  Current Price: ${top_buy['price']:.2f}")
+    # Progress summary
+    st.markdown("---")
+    st.subheader("📊 Today's Progress")
     
-    return results
-
-def analyze_single_stock(symbol: str):
-    """Analyze a single stock"""
-    print("=" * 60)
-    print(f"STOCK ANALYSIS: {symbol}")
-    print("=" * 60)
-    print(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-    print()
+    steps = [
+        ("Pre-Market Setup", st.session_state.get('step1_done', False)),
+        ("Wait for Entry", st.session_state.get('step2_done', False)),
+        ("Enter Trade", st.session_state.get('step3_done', False)),
+        ("Monitor Trade", st.session_state.get('step4_done', False)),
+        ("Post-Market Review", st.session_state.get('step5_done', False)),
+    ]
     
-    stock_data = fetch_stock_data(symbol)
-    df = stock_data.get('history_daily')
+    completed = sum(1 for _, done in steps if done)
+    progress = completed / len(steps) * 100
     
-    if df is None or len(df) < 50:
-        print(f"Error: Insufficient data for {symbol}")
-        return
+    st.progress(progress / 100, text=f"{completed}/{len(steps)} steps completed")
     
-    current_price = df['close'].iloc[-1]
-    print(f"Current Price: ${current_price:.2f}")
-    print()
-    
-    indicators = analyze_stock(df)
-    signal = get_signal_from_indicators(indicators)
-    
-    print("TECHNICAL INDICATORS:")
-    if signal.get('rsi'):
-        print(f"  RSI: {signal['rsi']:.1f}")
-    print(f"  Signal: {signal['signal']}")
-    print(f"  Confidence: {signal['confidence']:.0%}")
-    print()
-    
-    if signal['signal'] in ['BUY', 'STRONG_BUY']:
-        print("TRADE SETUP (BUY):")
-        print(f"  Entry: ${current_price:.2f}")
-        print(f"  Stop Loss: ${current_price * 0.98:.2f} (-2%)")
-        print(f"  Target: ${current_price * 1.05:.2f} (+5%)")
-    elif signal['signal'] in ['SELL', 'STRONG_SELL']:
-        print("TRADE SETUP (SELL):")
-        print(f"  Entry: ${current_price:.2f}")
-        print(f"  Stop Loss: ${current_price * 1.02:.2f} (+2%)")
-        print(f"  Target: ${current_price * 0.95:.2f} (-5%)")
-    else:
-        print("No trade setup - HOLD signal")
-    
-    print()
-    news = analyze_news(symbol)
-    print("NEWS SENTIMENT:")
-    print(f"  Overall: {news['overall_sentiment']}")
-    print(f"  Articles: {news['article_count']}")
-    print(f"  Positive: {news['positive_count']}, Negative: {news['negative_count']}")
-
-def analyze_intraday(symbol: str):
-    """Intraday analysis for day trading"""
-    print("=" * 60)
-    print(f"INTRADAY ANALYSIS: {symbol}")
-    print("=" * 60)
-    print(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-    print(f"Market Session: {get_market_session()}")
-    print()
-    
-    stock_data = fetch_stock_data(symbol)
-    df = stock_data.get('history_daily')
-    
-    if df is None or len(df) < 50:
-        print(f"Error: Insufficient data for {symbol}")
-        return
-    
-    current_price = df['close'].iloc[-1]
-    print(f"Current Price: ${current_price:.2f}")
-    print()
-    
-    # VWAP Analysis
-    vwap_data = calculate_vwap_levels(df)
-    if vwap_data:
-        print("VWAP ANALYSIS:")
-        print(f"  VWAP: ${vwap_data['vwap']:.2f}")
-        print(f"  Position: {vwap_data['position'].upper()} VWAP")
-        print(f"  Distance: {vwap_data['distance_percent']:.2f}%")
-        print(f"  Upper Band: ${vwap_data['upper_band']:.2f}")
-        print(f"  Lower Band: ${vwap_data['lower_band']:.2f}")
-        print()
-    
-    # Intraday Signal
-    intraday = get_intraday_signal(df)
-    print("INTRADAY SIGNALS:")
-    for sig in intraday.get('details', {}).get('signals', []):
-        print(f"  - {sig}")
-    print()
-    print(f"Final Signal: {intraday['signal']} ({intraday['confidence']:.0%})")
-    print()
-    
-    # Entry/Exit for intraday
-    if vwap_data:
-        print("INTRADAY TRADE SETUP:")
-        if intraday['signal'] == 'BUY':
-            print(f"  Entry: ${current_price:.2f}")
-            print(f"  VWAP Support: ${vwap_data['vwap']:.2f}")
-            print(f"  Stop Loss: ${vwap_data['lower_band']:.2f}")
-            print(f"  Target: ${vwap_data['upper_band']:.2f}")
+    for i, (name, done) in enumerate(steps, 1):
+        if done:
+            st.success(f"✓ Step {i}: {name}")
         else:
-            print(f"  Entry: ${current_price:.2f}")
-            print(f"  VWAP Resistance: ${vwap_data['vwap']:.2f}")
-            print(f"  Stop Loss: ${vwap_data['upper_band']:.2f}")
-            print(f"  Target: ${vwap_data['lower_band']:.2f}")
-
-if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        if sys.argv[1] == '--scan':
-            scan_watchlist()
-        elif sys.argv[1] == '--intraday' and len(sys.argv) > 2:
-            analyze_intraday(sys.argv[2].upper())
-        else:
-            analyze_single_stock(sys.argv[1].upper())
+            st.info(f"○ Step {i}: {name}")
+    
+    # Quick reference
+    st.markdown("---")
+    st.subheader("⚡ Quick Reference")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("""
+        **📈 ENTRY RULES:**
+        - Price must be at/below signal entry
+        - All timeframes must align
+        - Confidence > 60%
+        - Volume above average
+        """)
+    
+    with col2:
+        st.markdown("""
+        **🛑 EXIT RULES:**
+        - Stop loss is MANDATORY
+        - Sell 50% at TP1
+        - Sell rest at TP2
+        - Close ALL by 3 PM
+        """)
+    
+    # Risk calculator
+    st.markdown("---")
+    st.subheader("🧮 Position Size Calculator")
+    
+    calc_col1, calc_col2, calc_col3 = st.columns(3)
+    
+    with calc_col1:
+        entry = st.number_input("Entry Price ($)", value=185.0, key="calc_entry")
+    with calc_col2:
+        stop = st.number_input("Stop Loss ($)", value=182.5, key="calc_stop")
+    with calc_col3:
+        capital = st.number_input("Capital ($)", value=10000, key="calc_capital")
+    
+    risk_per_share = entry - stop
+    risk_amount = capital * 0.02
+    shares = int(risk_amount / risk_per_share) if risk_per_share > 0 else 0
+    total_cost = shares * entry
+    
+    result_col1, result_col2, result_col3, result_col4 = st.columns(4)
+    result_col1.metric("Risk/Share", f"${risk_per_share:.2f}")
+    result_col2.metric("Max Risk", f"${risk_amount:,.2f}")
+    result_col3.metric("Shares", str(shares))
+    result_col4.metric("Total Cost", f"${total_cost:,.2f}")
+    
+    if total_cost > capital:
+        st.warning(f"⚠️ Total cost (${total_cost:,.2f}) exceeds capital (${capital:,.2f})")
     else:
-        print("Usage:")
-        print("  python daily_workflow.py --scan        # Scan watchlist")
-        print("  python daily_workflow.py --intraday AAPL  # Intraday analysis")
-        print("  python daily_workflow.py AAPL         # Single stock analysis")
+        usage = (total_cost / capital) * 100
+        st.success(f"✓ Using {usage:.1f}% of capital")
+
+# Initialize session state
+if 'step1_done' not in st.session_state:
+    st.session_state.step1_done = False
+if 'step2_done' not in st.session_state:
+    st.session_state.step2_done = False
+if 'step3_done' not in st.session_state:
+    st.session_state.step3_done = False
+if 'step4_done' not in st.session_state:
+    st.session_state.step4_done = False
+if 'step5_done' not in st.session_state:
+    st.session_state.step5_done = False

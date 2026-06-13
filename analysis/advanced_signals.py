@@ -6,14 +6,33 @@ from typing import Dict
 class AdvancedSignalEngine:
     def get_multi_timeframe_data(self, symbol: str) -> Dict[str, pd.DataFrame]:
         data = {}
-        for interval in ['1m', '5m', '15m', '1h', '1d']:
+        intervals_to_try = [
+            ('5m', '5d'),
+            ('15m', '5d'),
+            ('30m', '5d'),
+            ('1h', '5d'),
+            ('1d', '1mo')
+        ]
+        
+        for interval, period in intervals_to_try:
             try:
                 ticker = yf.Ticker(symbol)
-                df = ticker.history(period="5d" if interval == '1d' else "2d", interval=interval)
-                if not df.empty:
+                df = ticker.history(period=period, interval=interval, auto_adjust=True)
+                if df is not None and not df.empty and len(df) > 20:
                     data[interval] = df
-            except Exception:
+            except Exception as e:
                 continue
+        
+        # If no data fetched, try a simpler approach
+        if not data:
+            try:
+                ticker = yf.Ticker(symbol)
+                df = ticker.history(period="5d", interval="5m", auto_adjust=True)
+                if df is not None and not df.empty and len(df) > 20:
+                    data['5m'] = df
+            except:
+                pass
+        
         return data
 
     def calculate_timeframe_confluence(self, data: Dict[str, pd.DataFrame]) -> Dict:
@@ -121,8 +140,30 @@ class AdvancedSignalEngine:
         aroon = self._calculate_aroon(df)
         momentum['aroon_up'] = aroon['up']
         momentum['aroon_down'] = aroon['down']
-        bullish_count = sum([momentum['rsi_14'] > 50, momentum['macd'] > momentum['macd_signal'], momentum['stoch_k'] > momentum['stoch_d'], momentum['williams_r'] > -50, momentum['cci'] > 0, momentum['aroon_up'] > momentum['aroon_down']])
-        bearish_count = 6 - bullish_count
+        momentum['mfi'] = self._calculate_mfi(df)
+        momentum['roc'] = self._calculate_roc(df)
+        momentum['obv'] = self._calculate_obv(df)
+        adx = self._calculate_adx(df)
+        momentum['adx'] = adx['adx']
+        momentum['plus_di'] = adx['plus_di']
+        momentum['minus_di'] = adx['minus_di']
+        supertrend = self._calculate_supertrend(df)
+        momentum['supertrend'] = supertrend['value']
+        momentum['supertrend_dir'] = supertrend['direction']
+        
+        bullish_count = sum([
+            momentum['rsi_14'] > 50,
+            momentum['macd'] > momentum['macd_signal'],
+            momentum['stoch_k'] > momentum['stoch_d'],
+            momentum['williams_r'] > -50,
+            momentum['cci'] > 0,
+            momentum['aroon_up'] > momentum['aroon_down'],
+            momentum['mfi'] > 50,
+            momentum['roc'] > 0,
+            momentum['plus_di'] > momentum['minus_di'],
+            momentum['supertrend_dir'] > 0
+        ])
+        bearish_count = 10 - bullish_count
         total = bullish_count + bearish_count
         momentum_score = ((bullish_count - bearish_count) / total * 100) if total > 0 else 0
         direction = 'BULLISH' if momentum_score > 20 else 'BEARISH' if momentum_score < -20 else 'NEUTRAL'
@@ -149,28 +190,133 @@ class AdvancedSignalEngine:
         momentum = self.calculate_momentum_matrix(df_5m)
         volume = self.analyze_volume(df_5m)
         current = df_5m['Close'].iloc[-1]
-        confluence_score = confluence['confluence_pct'] * 0.25
-        pattern_score = patterns['score'] * 0.25
-        momentum_score = momentum.get('momentum_score', 0) * 0.25
-        volume_score = volume.get('vol_ratio', 1) * 15 if volume.get('above_vwap', False) else -volume.get('vol_ratio', 1) * 15
-        total_score = confluence_score + pattern_score + momentum_score + volume_score
-        action = "BUY" if total_score > 30 else "SELL" if total_score < -30 else "HOLD"
+        
+        # === IMPROVED CONFIDENCE CALCULATION ===
+        
+        # 1. Normalize each component to 0-100 scale
+        confluence_norm = (confluence['confluence_pct'] + 100) / 2  # -100 to 100 -> 0 to 100
+        
+        # 2. Pattern strength (normalize pattern score)
+        pattern_norm = min(100, max(0, patterns['score'] + 50))  # -50 to 100 -> 0 to 100
+        
+        # 3. Momentum score already normalized -100 to 100
+        momentum_norm = (momentum.get('momentum_score', 0) + 100) / 2
+        
+        # 4. Volume confirmation score
+        vol_ratio = volume.get('vol_ratio', 1)
+        above_vwap = volume.get('above_vwap', False)
+        vol_direction = 1 if above_vwap else -1
+        vol_norm = min(100, vol_ratio * 30) * (0.5 + 0.5 * vol_direction)  # 0-100 with direction
+        
+        # 5. Calculate weighted components
+        weights = {
+            'confluence': 0.30,      # Increased - multi-timeframe alignment is key
+            'patterns': 0.25,        # Pattern recognition is strong signal
+            'momentum': 0.25,        # Momentum indicators
+            'volume': 0.20           # Volume confirmation
+        }
+        
+        # 6. Calculate raw weighted score
+        raw_score = (
+            confluence_norm * weights['confluence'] +
+            pattern_norm * weights['patterns'] +
+            momentum_norm * weights['momentum'] +
+            vol_norm * weights['volume']
+        )
+        
+        # 7. Apply volatility adjustment
+        volatility = self._calculate_volatility(df_5m)
+        vol_adjustment = 1.0 - (volatility * 0.1)  # Reduce confidence in high volatility
+        
+        # 8. Apply alignment bonus (all timeframes aligned)
+        alignment_bonus = 1.15 if confluence.get('aligned', False) else 1.0
+        
+        # 9. Apply pattern count bonus
+        pattern_count = len(patterns['patterns'])
+        pattern_bonus = 1.0 + (pattern_count * 0.02)  # +2% per pattern detected
+        
+        # 10. Calculate final confidence
+        final_score = raw_score * vol_adjustment * alignment_bonus * pattern_bonus
+        confidence = min(100, max(0, final_score))
+        
+        # 11. Determine action with BALANCED thresholds
+        # Relaxed: Require most timeframes aligned AND good confidence
+        most_aligned = confluence.get('bullish_count', 0) >= 2  # At least 2 timeframes
+        good_momentum = momentum.get('momentum_score', 0) > 10
+        any_pattern = len(patterns['patterns']) >= 1
+        
+        if confidence > 60 and most_aligned and good_momentum and any_pattern and raw_score > 50:
+            action = "BUY"
+        elif confidence > 60 and most_aligned and momentum.get('momentum_score', 0) < -10 and any_pattern and raw_score < 50:
+            action = "SELL"
+        else:
+            action = "HOLD"
+        
+        # 12. Calculate adaptive stop/target based on ATR (WIDER stops for safety)
+        atr = self._calculate_atr(df_5m)
         if action == "BUY":
             entry = current
-            stop = current * 0.995
-            target1 = current * 1.01
-            target2 = current * 1.02
+            stop = current - (atr * 2.0)  # 2.0 ATR stop (wider)
+            target1 = current + (atr * 2.0)  # 2 ATR target (tighter)
+            target2 = current + (atr * 3.0)  # 3 ATR target
         elif action == "SELL":
             entry = current
-            stop = current * 1.005
-            target1 = current * 0.99
-            target2 = current * 0.98
+            stop = current + (atr * 2.0)
+            target1 = current - (atr * 2.0)
+            target2 = current - (atr * 3.0)
         else:
             entry = current
             stop = current
             target1 = current
             target2 = current
-        return {'symbol': symbol, 'action': action, 'confidence': abs(total_score), 'score': total_score, 'entry': entry, 'stop': stop, 'target1': target1, 'target2': target2, 'current_price': current, 'confluence': confluence, 'patterns': patterns, 'momentum': momentum, 'volume': volume}
+        
+        return {
+            'symbol': symbol, 
+            'action': action, 
+            'confidence': confidence,
+            'raw_score': raw_score,
+            'score': final_score,
+            'entry': entry, 
+            'stop': stop, 
+            'target1': target1, 
+            'target2': target2, 
+            'current_price': current,
+            'atr': atr,
+            'volatility': volatility,
+            'confluence': confluence, 
+            'patterns': patterns, 
+            'momentum': momentum, 
+            'volume': volume,
+            'component_scores': {
+                'confluence': confluence_norm,
+                'patterns': pattern_norm,
+                'momentum': momentum_norm,
+                'volume': vol_norm
+            }
+        }
+    
+    def _calculate_volatility(self, df: pd.DataFrame, period: int = 20) -> float:
+        """Calculate historical volatility"""
+        returns = df['Close'].pct_change().dropna()
+        if len(returns) < period:
+            return 0.02
+        volatility = returns.tail(period).std()
+        return volatility if not pd.isna(volatility) else 0.02
+    
+    def _calculate_atr(self, df: pd.DataFrame, period: int = 14) -> float:
+        """Calculate Average True Range"""
+        high = df['High']
+        low = df['Low']
+        close = df['Close']
+        
+        tr1 = high - low
+        tr2 = abs(high - close.shift())
+        tr3 = abs(low - close.shift())
+        
+        tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+        atr = tr.rolling(period).mean().iloc[-1]
+        
+        return atr if not pd.isna(atr) else (close.iloc[-1] * 0.01)
 
     def _calculate_rsi(self, df: pd.DataFrame, period: int = 14) -> float:
         delta = df['Close'].diff()
@@ -225,3 +371,157 @@ class AdvancedSignalEngine:
         aroon_up = 100 * (period - (period - df['High'].rolling(period).apply(lambda x: period - x[::-1].argmax(), raw=True).iloc[-1])) / period
         aroon_down = 100 * (period - (period - df['Low'].rolling(period).apply(lambda x: period - x[::-1].argmin(), raw=True).iloc[-1])) / period
         return {'up': aroon_up, 'down': aroon_down}
+    
+    def _calculate_obv(self, df: pd.DataFrame) -> float:
+        """On Balance Volume"""
+        close_diff = df['Close'].diff()
+        obv = (df['Volume'] * close_diff.apply(lambda x: 1 if x > 0 else -1 if x < 0 else 0)).cumsum()
+        return obv.iloc[-1]
+    
+    def _calculate_adx(self, df: pd.DataFrame, period: int = 14) -> dict:
+        """Average Directional Index"""
+        high = df['High']
+        low = df['Low']
+        close = df['Close']
+        
+        plus_dm = high.diff()
+        minus_dm = -low.diff()
+        plus_dm[plus_dm < 0] = 0
+        minus_dm[minus_dm < 0] = 0
+        
+        tr1 = high - low
+        tr2 = abs(high - close.shift())
+        tr3 = abs(low - close.shift())
+        tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+        
+        atr = tr.rolling(period).mean()
+        
+        plus_di = 100 * (plus_dm.rolling(period).mean() / atr)
+        minus_di = 100 * (minus_dm.rolling(period).mean() / atr)
+        
+        dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di)
+        adx = dx.rolling(period).mean()
+        
+        return {'adx': adx.iloc[-1] if not pd.isna(adx.iloc[-1]) else 0, 'plus_di': plus_di.iloc[-1], 'minus_di': minus_di.iloc[-1]}
+    
+    def _calculate_mfi(self, df: pd.DataFrame, period: int = 14) -> float:
+        """Money Flow Index"""
+        typical_price = (df['High'] + df['Low'] + df['Close']) / 3
+        money_flow = typical_price * df['Volume']
+        
+        positive_flow = money_flow.where(typical_price > typical_price.shift(), 0).rolling(period).sum()
+        negative_flow = money_flow.where(typical_price < typical_price.shift(), 0).rolling(period).sum()
+        
+        mfi = 100 - (100 / (1 + (positive_flow / negative_flow)))
+        return mfi.iloc[-1] if not pd.isna(mfi.iloc[-1]) else 50
+    
+    def _calculate_roc(self, df: pd.DataFrame, period: int = 12) -> float:
+        """Rate of Change"""
+        roc = ((df['Close'] - df['Close'].shift(period)) / df['Close'].shift(period)) * 100
+        return roc.iloc[-1] if not pd.isna(roc.iloc[-1]) else 0
+    
+    def _calculate_supertrend(self, df: pd.DataFrame, period: int = 10, multiplier: float = 3.0) -> dict:
+        """SuperTrend Indicator"""
+        high = df['High']
+        low = df['Low']
+        close = df['Close']
+        
+        tr1 = high - low
+        tr2 = abs(high - close.shift())
+        tr3 = abs(low - close.shift())
+        tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+        atr = tr.rolling(period).mean()
+        
+        hl2 = (high + low) / 2
+        upper_band = hl2 + (multiplier * atr)
+        lower_band = hl2 - (multiplier * atr)
+        
+        supertrend = [close.iloc[0]]
+        direction = [1]
+        
+        for i in range(1, len(close)):
+            if close.iloc[i] > upper_band.iloc[i]:
+                direction.append(1)
+            elif close.iloc[i] < lower_band.iloc[i]:
+                direction.append(-1)
+            else:
+                direction.append(direction[-1])
+            
+            if direction[-1] == 1:
+                supertrend.append(lower_band.iloc[i])
+            else:
+                supertrend.append(upper_band.iloc[i])
+        
+        return {'value': supertrend[-1], 'direction': direction[-1]}
+    
+    def _calculate_pivot_points(self, df: pd.DataFrame) -> dict:
+        """Calculate Pivot Points and S/R levels"""
+        high = df['High'].iloc[-1]
+        low = df['Low'].iloc[-1]
+        close = df['Close'].iloc[-1]
+        
+        pivot = (high + low + close) / 3
+        r1 = (2 * pivot) - low
+        s1 = (2 * pivot) - high
+        r2 = pivot + (high - low)
+        s2 = pivot - (high - low)
+        r3 = high + 2 * (pivot - low)
+        s3 = low - 2 * (high - pivot)
+        
+        return {'pivot': pivot, 'r1': r1, 'r2': r2, 'r3': r3, 's1': s1, 's2': s2, 's3': s3}
+    
+    def _calculate_keltner_channels(self, df: pd.DataFrame, period: int = 20, multiplier: float = 2.0) -> dict:
+        """Keltner Channels"""
+        middle = df['Close'].ewm(span=period).mean()
+        
+        tr1 = df['High'] - df['Low']
+        tr2 = abs(df['High'] - df['Close'].shift())
+        tr3 = abs(df['Low'] - df['Close'].shift())
+        tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+        atr = tr.rolling(period).mean()
+        
+        upper = middle + (multiplier * atr)
+        lower = middle - (multiplier * atr)
+        
+        return {'upper': upper.iloc[-1], 'middle': middle.iloc[-1], 'lower': lower.iloc[-1]}
+    
+    def _calculate_parabolic_sar(self, df: pd.DataFrame, af: float = 0.02, max_af: float = 0.2) -> dict:
+        """Parabolic SAR"""
+        high = df['High']
+        low = df['Low']
+        close = df['Close']
+        
+        sar = [low.iloc[0]]
+        trend = [1]
+        af_current = af
+        ep = [high.iloc[0]]
+        
+        for i in range(1, len(close)):
+            if trend[-1] == 1:
+                sar.append(sar[-1] + af_current * (ep[-1] - sar[-1]))
+                if low.iloc[i] < sar[-1]:
+                    trend.append(-1)
+                    sar.append(high.iloc[i])
+                    ep.append(low.iloc[i])
+                    af_current = af
+                else:
+                    if high.iloc[i] > ep[-1]:
+                        ep.append(high.iloc[i])
+                        af_current = min(af_current + af, max_af)
+                    else:
+                        ep.append(ep[-1])
+            else:
+                sar.append(sar[-1] - af_current * (sar[-1] - ep[-1]))
+                if high.iloc[i] > sar[-1]:
+                    trend.append(1)
+                    sar.append(low.iloc[i])
+                    ep.append(high.iloc[i])
+                    af_current = af
+                else:
+                    if low.iloc[i] < ep[-1]:
+                        ep.append(low.iloc[i])
+                        af_current = min(af_current + af, max_af)
+                    else:
+                        ep.append(ep[-1])
+        
+        return {'value': sar[-1], 'direction': trend[-1]}
