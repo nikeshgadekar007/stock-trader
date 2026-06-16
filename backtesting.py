@@ -139,18 +139,18 @@ class BacktestEngine:
         current = df.iloc[-1]
         current_time = current.name
         
-        # TIME FILTER: Only trade 10am-3pm EST (avoid first/last hour volatility)
+        # TIME FILTER: Trade 9:30am-3pm EST (market hours)
         hour = current_time.hour if hasattr(current_time, 'hour') else 10
-        if hour < 14 or hour > 20:  # 10am-4pm EST in UTC terms
+        if hour < 13 or hour > 20:  # 9:30am-4pm EST in UTC terms
             return 'HOLD'
         
         # VOLUME FILTER: Must have above-average volume
         vol_avg = df['Volume'].rolling(20).mean().iloc[-1]
         vol_current = current['Volume']
-        vol_ok = vol_current > vol_avg * 1.2  # 20% above average
+        vol_ok = vol_current > vol_avg * 0.8  # 20% above average
         
         # RSI FILTER: Not overbought/oversold
-        rsi_ok = 45 < current['rsi'] < 65
+        rsi_ok = 40 < current['rsi'] < 70
         
         # MACD FILTER: Bullish crossover or above signal
         macd_ok = current['macd'] > current['macd_signal']
@@ -158,17 +158,17 @@ class BacktestEngine:
         # VWAP FILTER: Price above VWAP
         vwap_ok = current['Close'] > current['vwap']
         
-        # EMA FILTER: Price above both EMAs
-        ema_ok = current['Close'] > current['ema_9'] > current['ema_21']
+        # EMA FILTER: Price above EMAs
+        ema_ok = current['Close'] > current['ema_9']
         
-        # ATR FILTER: Stock must be liquid enough (ATR > $1)
-        atr_ok = current['atr'] > 1.0
+        # ATR FILTER: Stock must be liquid enough (ATR > $0.50)
+        atr_ok = current['atr'] > 0.5
         
-        # Count bullish conditions (ALL must be true for BUY)
+        # Count bullish conditions
         bullish_count = sum([rsi_ok, macd_ok, vwap_ok, ema_ok, vol_ok, atr_ok])
         
-        # STRICTER: Require ALL 6 conditions for BUY
-        if bullish_count >= 6:
+        # Require at least 4 conditions for BUY (relaxed from 6)
+        if bullish_count >= 4:
             return 'BUY'
         elif bullish_count <= 2:
             return 'SELL'
