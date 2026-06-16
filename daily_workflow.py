@@ -52,7 +52,7 @@ def render_daily_workflow():
         4. Click **Analyze** to get signals
         5. Note top BUY signals with prices
         """)
-        st.success("🕐 **HK Time: 8:30 PM - 9:30 PM**")
+        st.success("🕐 **HK Time: 9:30 PM**")
         st.info("🇺🇸 US Time: 8:30 AM EST")
         
         if st.button("✅ I've completed pre-market setup"):
@@ -69,7 +69,7 @@ def render_daily_workflow():
         3. Only enter if price is AT or BELOW entry
         4. Never chase a stock that's already moved up
         """)
-        st.success("🕐 **HK Time: 10:30 PM - 11:00 PM**")
+        st.success("🕐 **HK Time: 10:30 PM**")
         st.info("🇺🇸 US Time: 9:30 AM EST")
         
         if st.button("✅ Market opened, waiting for entry"):
@@ -83,7 +83,7 @@ def render_daily_workflow():
         - Target 1: Set TP1
         - Target 2: Set TP2
         """)
-        st.success("🕐 **HK Time: 11:00 PM - 2:00 AM**")
+        st.success("🕐 **HK Time: 11:00 PM - 4:00 AM**")
         st.info("🇺🇸 US Time: 10:00 AM - 3:00 PM EST")
         
         col1, col2 = st.columns(2)
@@ -106,8 +106,8 @@ def render_daily_workflow():
         - Price hits Stop Loss: Exit immediately
         - 3:00 PM EST arrives: Close all positions
         """)
-        st.success("🕐 **HK Time: 2:00 AM - 4:00 AM**")
-        st.info("🇺🇸 US Time: 3:00 PM - 4:00 PM EST")
+        st.success("🕐 **HK Time: 4:00 AM**")
+        st.info("🇺🇸 US Time: 3:00 PM EST")
         
         if st.button("✅ Trade monitoring complete"):
             st.session_state.step4_done = True
@@ -121,8 +121,8 @@ def render_daily_workflow():
         4. Write down what worked and what didn't
         5. Update watchlist for tomorrow
         """)
-        st.success("🕐 **HK Time: 4:00 AM - 5:00 AM**")
-        st.info("🇺🇸 US Time: 4:00 PM - 5:00 PM EST")
+        st.success("🕐 **HK Time: 5:00 AM**")
+        st.info("🇺🇸 US Time: 4:00 PM EST")
         
         if st.button("✅ Daily review complete"):
             st.session_state.step5_done = True
@@ -155,7 +155,7 @@ def render_daily_workflow():
     st.markdown("""
     | Activity | HK Time | US Time |
     |----------|---------|---------|
-    | Pre-Market Scan | 8:30 PM | 8:30 AM |
+    | Pre-Market Scan | 9:30 PM | 8:30 AM |
     | Market Opens | 10:30 PM | 9:30 AM |
     | Trading Hours | 10:30 PM - 4:00 AM | 9:30 AM - 4:00 PM |
     | Market Closes | 4:00 AM | 4:00 PM |
