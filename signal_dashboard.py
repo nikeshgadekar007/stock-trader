@@ -46,9 +46,9 @@ def render_signal_dashboard():
                     all_signals.append(signal)
         
         st.session_state.error_symbols = error_symbols
-        st.session_state.buy_signals = sorted([s for s in all_signals if s['action'] == 'BUY'], key=lambda x: x['confidence'], reverse=True)
-        st.session_state.hold_signals = sorted([s for s in all_signals if s['action'] == 'HOLD'], key=lambda x: x['confidence'], reverse=True)
-        st.session_state.sell_signals = sorted([s for s in all_signals if s['action'] == 'SELL'], key=lambda x: x['confidence'], reverse=True)
+        st.session_state.buy_signals = sorted([s for s in all_signals if s['signal'] == 'BUY'], key=lambda x: x['total_score'], reverse=True)
+        st.session_state.hold_signals = sorted([s for s in all_signals if s['signal'] == 'HOLD'], key=lambda x: x['total_score'], reverse=True)
+        st.session_state.sell_signals = sorted([s for s in all_signals if s['signal'] == 'SELL'], key=lambda x: x['total_score'], reverse=True)
         st.session_state.signals_analyzed = True
         
         for signal in st.session_state.buy_signals:
@@ -91,12 +91,12 @@ def render_signal_dashboard():
 
 
 def _render_signal_card(signal, rank, action_type, trading_capital=10000, max_risk_amount=200):
-    action = signal['action']
-    confidence = signal['confidence']
+    action = signal['signal']
+    confidence = signal['total_score']
     
     emoji = "🟢" if action == "BUY" else "🔴" if action == "SELL" else "⚪"
     
-    st.markdown(f"### {emoji} #{rank} {signal['symbol']} - **{action}** ({confidence:.1f}% confidence)")
+    st.markdown(f"### {emoji} #{rank} {signal['symbol']} - **{action}** (Score: {confidence})")
     
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -104,16 +104,16 @@ def _render_signal_card(signal, rank, action_type, trading_capital=10000, max_ri
     with col2:
         st.metric("Entry", f"${signal['entry']:.2f}")
     with col3:
-        st.metric("Stop Loss", f"${signal['stop']:.2f}")
+        st.metric("Stop Loss", f"${signal['stop_loss']:.2f}")
     with col4:
-        st.metric("Target", f"${signal['target1']:.2f}")
+        st.metric("Target", f"${signal['target']:.2f}")
     
-    risk = abs(signal['entry'] - signal['stop'])
-    reward = abs(signal['target1'] - signal['entry'])
+    risk = abs(signal['entry'] - signal['stop_loss'])
+    reward = abs(signal['target'] - signal['entry'])
     rr_ratio = reward / risk if risk > 0 else 0
-    atr = signal.get('atr', 0)
+    risk_reward = signal.get('risk_reward', rr_ratio)
     
-    st.info(f"💰 Risk/Reward: {rr_ratio:.2f}x | ATR: ${atr:.2f}")
+    st.info(f"💰 Risk/Reward: {risk_reward:.2f}x")
     
     if action == "BUY":
         st.markdown("#### 📊 Position Size Calculator")
@@ -136,7 +136,7 @@ def _render_signal_card(signal, rank, action_type, trading_capital=10000, max_ri
             )
         
         current_price = signal['current_price']
-        stop_loss = signal['stop']
+        stop_loss = signal['stop_loss']
         risk_per_share = current_price - stop_loss
         
         shares = int(amount_usd / current_price)
@@ -167,7 +167,7 @@ def _render_signal_card(signal, rank, action_type, trading_capital=10000, max_ri
         else:
             st.success(f"✅ Risk ${actual_risk:.2f} is within your ${max_risk_amount:.2f} limit ({risk_pct_of_capital:.2f}% of capital)")
         
-        potential_profit = shares * (signal['target1'] - current_price)
+        potential_profit = shares * (signal['target'] - current_price)
         profit_pct = (potential_profit / total_cost) * 100 if total_cost > 0 else 0
         st.info(f"📈 Potential Profit: ${potential_profit:.2f} ({profit_pct:.1f}% return)")
     
