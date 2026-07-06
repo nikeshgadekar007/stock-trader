@@ -58,12 +58,21 @@ DEFAULT_WATCHLIST = [
 ]
 
 # =============================================================================
+# LOGGING
+# =============================================================================
+
+LOG_LEVEL = 'INFO'
+LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+
+# =============================================================================
 # OUTPUT SETTINGS
 # =============================================================================
 
 OUTPUT_DIR = 'output'
+CHARTS_DIR = f'{OUTPUT_DIR}/charts'
 TRADES_DB = f'{OUTPUT_DIR}/trades.db'
 RECOMMENDATIONS_FILE = f'{OUTPUT_DIR}/recommendations.json'
+ANALYSIS_REPORT_FILE = f'{OUTPUT_DIR}/analysis_report.html'
 TRADES_LOG_FILE = f'{OUTPUT_DIR}/trades.log'
 
 # =============================================================================

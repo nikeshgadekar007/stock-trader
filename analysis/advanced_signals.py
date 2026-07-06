@@ -45,33 +45,38 @@ class AdvancedSignalEngine:
                 continue
             ema_9 = df['Close'].ewm(span=9).mean().iloc[-1]
             ema_21 = df['Close'].ewm(span=21).mean().iloc[-1]
+            ema_40 = df['Close'].ewm(span=40).mean().iloc[-1]
             current = df['Close'].iloc[-1]
             rsi = self._calculate_rsi(df)
             macd = self._calculate_macd(df)
             score = 0
-            if current > ema_9 > ema_21:
-                score += 33
-            elif current < ema_9 < ema_21:
-                score -= 33
+            if ema_9 > ema_21 > ema_40:
+                score += 25
+            elif ema_9 < ema_21 < ema_40:
+                score -= 25
             if rsi > 50:
-                score += 33
+                score += 25
             elif rsi < 50:
-                score -= 33
+                score -= 25
             if macd > 0:
-                score += 34
+                score += 25
             elif macd < 0:
-                score -= 34
+                score -= 25
+            if current > ema_9:
+                score += 25
+            elif current < ema_9:
+                score -= 25
             scores[timeframe] = score
         total_score = sum(scores.values())
         max_possible = len(scores) * 100 if scores else 1
         bullish_count = sum(1 for s in scores.values() if s > 0)
         bearish_count = sum(1 for s in scores.values() if s < 0)
         return {
-            'total_score': total_score, 
-            'confluence_pct': (total_score / max_possible * 100) if max_possible > 0 else 0, 
-            'bullish_count': bullish_count, 
-            'bearish_count': bearish_count, 
-            'aligned': bullish_count == len(scores) or bearish_count == len(scores), 
+            'total_score': total_score,
+            'confluence_pct': (total_score / max_possible * 100) if max_possible > 0 else 0,
+            'bullish_count': bullish_count,
+            'bearish_count': bearish_count,
+            'aligned': bullish_count == len(scores) or bearish_count == len(scores),
             'scores': scores
         }
 
@@ -133,7 +138,6 @@ class AdvancedSignalEngine:
         elif current < support * 1.01:
             patterns.append('SUPPORT_BREAK')
             pattern_score -= 25
-        
         ichimoku = self._calculate_ichimoku(df)
         if ichimoku['bullish']:
             patterns.append('ICHIMOKU_BULLISH')
@@ -141,7 +145,6 @@ class AdvancedSignalEngine:
         elif ichimoku['bearish']:
             patterns.append('ICHIMOKU_BEARISH')
             pattern_score -= 15
-        
         fib_levels = self._calculate_fibonacci(df)
         if fib_levels['near_support']:
             patterns.append('FIB_SUPPORT')
@@ -149,7 +152,29 @@ class AdvancedSignalEngine:
         if fib_levels['near_resistance']:
             patterns.append('FIB_RESISTANCE')
             pattern_score -= 10
-            
+        ema_triple = self._calculate_ema_triple(df)
+        if ema_triple['alignment'] == 'BULLISH_STACK':
+            patterns.append('EMA_TRIPLE_BULLISH')
+            pattern_score += 25
+        elif ema_triple['alignment'] == 'BEARISH_STACK':
+            patterns.append('EMA_TRIPLE_BEARISH')
+            pattern_score -= 25
+        for crossover in ema_triple['crossovers']:
+            patterns.append(crossover)
+            if crossover == 'EMA9_21_BULLISH_CROSS':
+                pattern_score += 20
+            elif crossover == 'EMA9_21_BEARISH_CROSS':
+                pattern_score -= 20
+            elif crossover == 'EMA21_40_BULLISH_CROSS':
+                pattern_score += 15
+            elif crossover == 'EMA21_40_BEARISH_CROSS':
+                pattern_score -= 15
+        if ema_triple['price_above_ema9']:
+            patterns.append('PRICE_ABOVE_EMA9')
+            pattern_score += 10
+        else:
+            patterns.append('PRICE_BELOW_EMA9')
+            pattern_score -= 10
         return {'patterns': patterns, 'score': pattern_score}
 
     def calculate_momentum_matrix(self, df: pd.DataFrame) -> Dict:
@@ -188,7 +213,8 @@ class AdvancedSignalEngine:
         primary_df = list(data.values())[0]
         patterns = self.detect_patterns(primary_df)
         momentum = self.calculate_momentum_matrix(primary_df)
-        
+        ema_strategy = self._calculate_ema_triple(primary_df)
+
         total_score = confluence['total_score'] + patterns['score']
         signal = 'HOLD'
         if total_score > 50:
@@ -203,6 +229,7 @@ class AdvancedSignalEngine:
             'confluence': confluence,
             'patterns': patterns,
             'momentum': momentum,
+            'ema_strategy': ema_strategy,
             'current_price': primary_df['Close'].iloc[-1]
         }
     
@@ -385,3 +412,42 @@ class AdvancedSignalEngine:
         near_support = any(abs(current - levels[l]) < tolerance for l in ['0.236', '0.382', '0.618'])
         near_resistance = any(abs(current - levels[l]) < tolerance for l in ['0.786', '0.5'])
         return {'near_support': near_support, 'near_resistance': near_resistance}
+    
+    def _calculate_ema_triple(self, df: pd.DataFrame) -> Dict:
+        if len(df) < 45:
+            return {
+                'ema_9': 0.0, 'ema_21': 0.0, 'ema_40': 0.0,
+                'alignment': 'MIXED', 'crossovers': [],
+                'price_above_ema9': False, 'trend_strength': 0.0
+            }
+        ema_9 = df['Close'].ewm(span=9).mean()
+        ema_21 = df['Close'].ewm(span=21).mean()
+        ema_40 = df['Close'].ewm(span=40).mean()
+        ema_9_curr = ema_9.iloc[-1]
+        ema_21_curr = ema_21.iloc[-1]
+        ema_40_curr = ema_40.iloc[-1]
+        current_price = df['Close'].iloc[-1]
+        crossovers = []
+        if ema_9_curr > ema_21_curr and ema_9.iloc[-2] <= ema_21.iloc[-2]:
+            crossovers.append('EMA9_21_BULLISH_CROSS')
+        elif ema_9_curr < ema_21_curr and ema_9.iloc[-2] >= ema_21.iloc[-2]:
+            crossovers.append('EMA9_21_BEARISH_CROSS')
+        if ema_21_curr > ema_40_curr and ema_21.iloc[-2] <= ema_40.iloc[-2]:
+            crossovers.append('EMA21_40_BULLISH_CROSS')
+        elif ema_21_curr < ema_40_curr and ema_21.iloc[-2] >= ema_40.iloc[-2]:
+            crossovers.append('EMA21_40_BEARISH_CROSS')
+        if ema_9_curr > ema_21_curr > ema_40_curr:
+            alignment = 'BULLISH_STACK'
+        elif ema_9_curr < ema_21_curr < ema_40_curr:
+            alignment = 'BEARISH_STACK'
+        else:
+            alignment = 'MIXED'
+        price_above_ema9 = current_price > ema_9_curr
+        price_range = df['Close'].max() - df['Close'].min()
+        ema_spread = abs(ema_9_curr - ema_40_curr)
+        trend_strength = (ema_spread / price_range * 100) if price_range > 0 else 0.0
+        return {
+            'ema_9': ema_9_curr, 'ema_21': ema_21_curr, 'ema_40': ema_40_curr,
+            'alignment': alignment, 'crossovers': crossovers,
+            'price_above_ema9': price_above_ema9, 'trend_strength': trend_strength
+        }
