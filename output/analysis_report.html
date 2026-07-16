@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Intraday Trading Recommendations</title>
+<style>
+body { font-family: Arial, sans-serif; background: #0a0a0a; color: #fff; padding: 20px; }
+.header { text-align: center; margin-bottom: 30px; }
+.header h1 { color: #00d4ff; }
+.stats { display: flex; gap: 20px; margin-bottom: 30px; }
+.stat-card { background: #1a1a2e; padding: 20px; border-radius: 10px; flex: 1; text-align: center; }
+.stat-card .value { font-size: 2em; font-weight: bold; color: #00d4ff; }
+.rec-card { background: #1a1a2e; border-radius: 15px; padding: 25px; margin-bottom: 20px; border-left: 5px solid #00d4ff; }
+.rec-card.sell { border-left-color: #ff4757; }
+.rec-card .symbol { font-size: 2em; font-weight: bold; }
+.action { display: inline-block; padding: 5px 15px; border-radius: 20px; font-weight: bold; }
+.action.buy { background: #00d4ff; color: #000; }
+.action.sell { background: #ff4757; color: #fff; }
+.confidence { display: inline-block; padding: 5px 15px; border-radius: 20px; margin-left: 10px; }
+.confidence.high { background: #00ff88; color: #000; }
+.confidence.medium { background: #ffaa00; color: #000; }
+.confidence.low { background: #888; color: #fff; }
+.prices { display: flex; gap: 15px; margin-top: 20px; }
+.price-box { background: #16213e; padding: 15px; border-radius: 10px; flex: 1; text-align: center; }
+.price-box .value { font-size: 1.5em; font-weight: bold; }
+.entry { color: #00d4ff; }
+.target { color: #00ff88; }
+.stop { color: #ff4757; }
+.reason { margin-top: 15px; padding: 15px; background: #16213e; border-radius: 10px; }
+.footer { text-align: center; margin-top: 40px; color: #666; }
+</style>
+</head>
+<body>
+<div class="header">
+<h1>Intraday Trading Recommendations</h1>
+<p>Generated: 2026-07-06 23:46:18 HKT | US Market Analysis</p>
+</div>
+<div class="stats">
+<div class="stat-card">
+<div class="value">51</div>
+<div>Total Recommendations</div>
+</div>
+<div class="stat-card">
+<div class="value">47</div>
+<div>Buy Signals</div>
+</div>
+<div class="stat-card">
+<div class="value">4</div>
+<div>Sell Signals</div>
+</div>
+<div class="stat-card">
+<div class="value">$100000</div>
+<div>Trading Capital</div>
+</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">AAPL</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$313.87</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$312.30</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$324.79</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$306.05</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">48</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14990.40</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">MSFT</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$386.44</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$384.51</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$399.89</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$376.82</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">39</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14995.89</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">GOOGL</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$363.08</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$361.27</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$375.72</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$354.04</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">41</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14812.07</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">AMZN</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$245.07</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$243.84</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$253.59</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$238.96</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">61</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14874.24</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">TSLA</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$412.58</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$410.52</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$426.94</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$402.31</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">36</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14778.72</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">INTC</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$125.07</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$124.44</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$129.42</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$121.95</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">120</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14932.80</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: RSI oversold at 27.5; RSI at 27.5</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">NFLX</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$76.40</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$76.02</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$79.06</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$74.50</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">197</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14975.94</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">V</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$354.21</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$352.44</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$366.54</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$345.39</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">42</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14802.48</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">JNJ</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence medium">MEDIUM CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$257.53</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$256.24</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$266.49</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$251.12</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">58</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14861.92</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; Stochastic oversold; Stochastic Oversold; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">PFE</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$23.73</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$23.62</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$24.56</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$23.15</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">635</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14998.70</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">UNH</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence medium">MEDIUM CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$416.77</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$414.69</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$431.28</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$406.40</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">36</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14928.84</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; Stochastic oversold; Stochastic Oversold; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">ABBV</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence medium">MEDIUM CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$255.50</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$254.22</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$264.39</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$249.14</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">59</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14998.98</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; Stochastic oversold; Stochastic Oversold; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">MRK</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$126.02</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$125.39</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$130.41</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$122.88</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">119</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14921.41</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">ABT</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$94.55</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$94.08</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$97.84</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$92.20</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">159</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14958.72</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">CVX</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$167.51</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$166.67</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$173.34</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$163.34</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">89</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14833.63</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: Stochastic oversold; RSI at 32.4; Stochastic Oversold</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">COP</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$104.02</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$103.49</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$107.63</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$101.42</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">144</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14902.56</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: Stochastic oversold; Stochastic Oversold</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">WMT</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$109.62</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$109.07</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$113.43</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$106.89</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">137</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14942.59</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: RSI at 30.4</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">TGT</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence medium">MEDIUM CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$125.10</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$124.47</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$129.45</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$121.98</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">120</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14936.40</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; Stochastic oversold; Stochastic Oversold; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">HD</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$349.07</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$347.33</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$361.22</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$340.38</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">43</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14935.19</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">LOW</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$221.58</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$220.47</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$229.29</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$216.06</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">68</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14991.96</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">MMM</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence medium">MEDIUM CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$156.40</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$155.61</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$161.83</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$152.50</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">96</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14938.56</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; RSI at 36.0; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">HON</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$225.69</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$224.56</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$233.54</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$220.07</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">66</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14820.96</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">SPCE</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$2.69</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$2.68</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$2.79</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$2.63</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.2x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">5597</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14999.96</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">PLTR</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$133.32</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$132.65</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$137.96</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$130.00</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">113</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14989.45</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">SNAP</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$4.82</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$4.79</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$4.98</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$4.69</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">1.9x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">3131</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14997.49</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">ROKU</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence medium">MEDIUM CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$141.47</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$140.77</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$146.40</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$137.95</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">106</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14921.62</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: RSI oversold at 22.5; Stochastic oversold; RSI at 22.5; Stochastic Oversold</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">HOOD</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$117.60</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$117.01</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$121.69</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$114.67</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">128</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14977.28</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">COIN</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$167.77</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$166.93</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$173.61</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$163.59</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">89</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14856.77</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">LCID</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$6.47</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$6.44</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$6.70</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$6.31</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">2329</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14998.76</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">SQQQ</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence medium">MEDIUM CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$37.80</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$37.61</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$39.11</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$36.86</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">398</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14968.78</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; Stochastic oversold; RSI at 39.2; Stochastic Oversold</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">UVXY</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$24.04</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$23.92</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$24.88</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$23.44</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">627</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14997.84</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">NIO</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$5.04</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$5.02</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$5.22</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$4.92</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">2988</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14999.76</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">F</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$13.74</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$13.67</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$14.22</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$13.40</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">1097</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14995.99</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">GM</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$77.46</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$77.08</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$80.16</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$75.54</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">194</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14953.52</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">W</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$94.04</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$93.57</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$97.31</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$91.70</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">160</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14971.20</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">PYPL</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$44.80</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$44.57</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$46.35</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$43.68</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">336</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14975.52</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">SHOP</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$119.99</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$119.39</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$124.17</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$117.00</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">125</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14923.75</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">ZM</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$85.76</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$85.33</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$88.74</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$83.62</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">175</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14932.75</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">DOCU</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$45.85</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$45.62</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$47.44</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$44.71</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">328</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14963.36</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">CRWD</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence medium">MEDIUM CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$204.11</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$203.09</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$211.21</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$199.03</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">73</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14825.57</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: RSI oversold at 28.9; Stochastic oversold; RSI at 28.9; Stochastic Oversold</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">DDOG</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$260.19</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$258.89</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$269.25</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$253.71</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">57</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14756.73</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">SNOW</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$263.91</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$262.59</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$273.09</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$257.34</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">57</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14967.63</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">U</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$29.67</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$29.52</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$30.70</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$28.93</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">508</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14996.16</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">ABNB</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$148.87</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$148.13</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$154.06</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$145.17</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">101</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14961.13</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">DASH</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$194.66</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$193.69</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$201.44</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$189.82</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">77</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14914.13</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">RIOT</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence medium">MEDIUM CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$23.53</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$23.41</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$24.35</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$22.94</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">640</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14982.40</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: RSI oversold at 15.1; RSI at 15.1</div>
+</div>
+<div class="rec-card buy">
+<div class="symbol">SOFI</div>
+<div>
+<span class="action buy">BUY</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$19.00</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$18.90</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$19.66</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$18.52</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="prices">
+<div class="price-box"><div>Shares</div><div class="value">793</div></div>
+<div class="price-box"><div>Total Cost</div><div class="value">$14987.70</div></div>
+<div class="price-box"><div>Risk Amount</div><div class="value">$300.00</div></div>
+</div>
+<div class="reason">Reason: MACD bullish crossover; MACD Bullish</div>
+</div>
+<div class="rec-card sell">
+<div class="symbol">BA</div>
+<div>
+<span class="action sell">SELL</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$233.19</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$234.36</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$224.99</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$239.05</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="reason">Reason: Stochastic overbought; Stochastic Overbought</div>
+</div>
+<div class="rec-card sell">
+<div class="symbol">IWM</div>
+<div>
+<span class="action sell">SELL</span>
+<span class="confidence medium">MEDIUM CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$300.19</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$301.69</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$289.62</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$307.72</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="reason">Reason: RSI overbought at 75.7; Stochastic overbought; RSI Overbought at 75.7; Stochastic Overbought</div>
+</div>
+<div class="rec-card sell">
+<div class="symbol">TQQQ</div>
+<div>
+<span class="action sell">SELL</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$77.28</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$77.67</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$74.56</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$79.22</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="reason">Reason: Stochastic overbought; Stochastic Overbought</div>
+</div>
+<div class="rec-card sell">
+<div class="symbol">NET</div>
+<div>
+<span class="action sell">SELL</span>
+<span class="confidence low">LOW CONFIDENCE</span>
+</div>
+<div class="prices">
+<div class="price-box"><div>Current</div><div class="value">$247.63</div></div>
+<div class="price-box"><div>Entry</div><div class="value entry">$248.87</div></div>
+<div class="price-box"><div>Target</div><div class="value target">$238.92</div></div>
+<div class="price-box"><div>Stop Loss</div><div class="value stop">$253.85</div></div>
+<div class="price-box"><div>R/R Ratio</div><div class="value">2.0x</div></div>
+</div>
+<div class="reason">Reason: Stochastic overbought; Stochastic Overbought</div>
+</div>
+</div>
+<div class="glossary" style="background:#1a1a2e;padding:20px;border-radius:15px;margin-top:30px;">
+<h2 style="color:#00d4ff;">Trading Terms Glossary</h2>
+<div style="display:grid;grid-template-columns:1fr 2fr;gap:10px;">
+<div><strong>Current</strong></div><div>Current market price right now</div>
+<div><strong>Entry</strong></div><div>Price at which you SHOULD enter the trade</div>
+<div><strong>Target</strong></div><div>Price where you take profit (exit with gain)</div>
+<div><strong>Stop Loss</strong></div><div>Price where you cut losses if trade goes wrong</div>
+<div><strong>R/R Ratio</strong></div><div>Risk/Reward - For every $1 risk, you gain this much</div>
+<div><strong>Confidence</strong></div><div>HIGH=Multiple indicators, MEDIUM=2+, LOW=1 indicator</div>
+</div>
+<h3 style="color:#ff4757;margin-top:20px;">For SELL Signals (Short Selling):</h3>
+<p>Sell at Entry, Buy back at Target for profit. If price rises to Stop Loss, buy back for loss.</p>
+<h3 style="color:#00d4ff;margin-top:15px;">For BUY Signals (Long Buying):</h3>
+<p>Buy at Entry, Sell at Target for profit. If price drops to Stop Loss, sell for loss.</p>
+</div>
+<div class="footer">
+<p>Warning: This is not financial advice. Trade at your own risk.</p>
+<p>Generated by Stock Trading Analysis System</p>
+</div>
+</body>
+</html>
