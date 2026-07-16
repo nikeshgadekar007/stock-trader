@@ -98,6 +98,14 @@ def _render_signal_card(signal, rank, action_type, trading_capital=10000, max_ri
     
     st.markdown(f"### {emoji} #{rank} {signal['symbol']} - **{action}** (Score: {confidence})")
     
+    # Display confidence level
+    confidence = signal.get('confidence', {})
+    conf_level = confidence.get('level', 'MEDIUM')
+    conf_value = confidence.get('confidence', 50)
+    
+    conf_color = "🟢" if conf_level == 'HIGH' else "🟡" if conf_level == 'MEDIUM' else "🔴"
+    st.markdown(f"{conf_color} **Confidence: {conf_value:.0f}%** ({conf_level})")
+    
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("Current Price", f"${signal['current_price']:.2f}")
@@ -114,6 +122,13 @@ def _render_signal_card(signal, rank, action_type, trading_capital=10000, max_ri
     risk_reward = signal.get('risk_reward', rr_ratio)
     
     st.info(f"💰 Risk/Reward: {risk_reward:.2f}x")
+    
+    # Display market regime
+    regime = signal.get('regime', {})
+    regime_text = regime.get('regime', 'UNKNOWN')
+    regime_dir = regime.get('direction', 'NEUTRAL')
+    regime_emoji = "📈" if regime_dir == 'BULLISH' else "📉" if regime_dir == 'BEARISH' else "➡️"
+    st.caption(f"{regime_emoji} Market: {regime_text} ({regime_dir})")
     
     if action == "BUY":
         st.markdown("#### 📊 Position Size Calculator")
@@ -207,28 +222,54 @@ def _render_signal_card(signal, rank, action_type, trading_capital=10000, max_ri
         with tab3:
             st.subheader("Momentum Matrix (10 Indicators)")
             momentum = signal.get('momentum', {})
-            indicators = momentum.get('indicators', {})
             
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.metric("RSI(14)", f"{indicators.get('rsi_14', 0):.1f}")
-                st.metric("MACD", f"{indicators.get('macd', 0):.2f}")
-                st.metric("MFI", f"{indicators.get('mfi', 0):.1f}")
+                st.metric("RSI(14)", f"{momentum.get('rsi_14', 0):.1f}")
+                st.metric("MACD", f"{momentum.get('macd', 0):.2f}")
+                st.metric("MFI", f"{momentum.get('mfi', 0):.1f}")
             with col2:
-                st.metric("Stochastic K", f"{indicators.get('stoch_k', 0):.1f}")
-                st.metric("Williams %R", f"{indicators.get('williams_r', 0):.1f}")
-                st.metric("ROC", f"{indicators.get('roc', 0):.2f}%")
+                st.metric("Stochastic K", f"{momentum.get('stoch_k', 0):.1f}")
+                st.metric("Williams %R", f"{momentum.get('williams_r', 0):.1f}")
+                st.metric("ROC", f"{momentum.get('roc', 0):.2f}%")
             with col3:
-                st.metric("CCI", f"{indicators.get('cci', 0):.1f}")
-                st.metric("Aroon", f"{indicators.get('aroon_up', 0):.0f}/{indicators.get('aroon_down', 0):.0f}")
-                st.metric("ADX", f"{indicators.get('adx', 0):.1f}")
+                st.metric("CCI", f"{momentum.get('cci', 0):.1f}")
+                st.metric("Aroon", f"{momentum.get('aroon_up', 0):.0f}/{momentum.get('aroon_down', 0):.0f}")
+                st.metric("ADX", f"{momentum.get('adx', 0):.1f}")
             
-            st.write(f"**Direction:** {momentum.get('direction', 'N/A')}")
-            st.write(f"**Momentum Score:** {momentum.get('momentum_score', 0):.1f}")
-            st.write(f"🟢 Bullish: {momentum.get('bullish_count', 0)}/10 | 🔴 Bearish: {momentum.get('bearish_count', 0)}/10")
+            # Calculate direction and score from indicators
+            bullish_count = 0
+            bearish_count = 0
+            if momentum.get('rsi_14', 50) > 50:
+                bullish_count += 1
+            elif momentum.get('rsi_14', 50) < 50:
+                bearish_count += 1
+            if momentum.get('macd', 0) > 0:
+                bullish_count += 1
+            else:
+                bearish_count += 1
+            if momentum.get('stoch_k', 50) > 50:
+                bullish_count += 1
+            elif momentum.get('stoch_k', 50) < 50:
+                bearish_count += 1
+            if momentum.get('williams_r', -50) > -50:
+                bullish_count += 1
+            else:
+                bearish_count += 1
+            if momentum.get('mfi', 50) > 50:
+                bullish_count += 1
+            elif momentum.get('mfi', 50) < 50:
+                bearish_count += 1
+            
+            direction = "BULLISH" if bullish_count > bearish_count else "BEARISH" if bearish_count > bullish_count else "NEUTRAL"
+            momentum_score = (bullish_count - bearish_count) * 10
+            
+            st.write(f"**Direction:** {direction}")
+            st.write(f"**Momentum Score:** {momentum_score:.1f}")
+            st.write(f"🟢 Bullish: {bullish_count}/10 | 🔴 Bearish: {bearish_count}/10")
             
             # SuperTrend
-            st.write(f"**SuperTrend:** ${indicators.get('supertrend', 0):.2f} ({'↑ BULLISH' if indicators.get('supertrend_dir', 0) > 0 else '↓ BEARISH'})")
+            st.write(f"**SuperTrend:** ${momentum.get('supertrend', 0):.2f} ({momentum.get('supertrend_signal', 'N/A')})")
         
         with tab4:
             st.subheader("Volume Analysis")
@@ -242,9 +283,49 @@ def _render_signal_card(signal, rank, action_type, trading_capital=10000, max_ri
                 with col3:
                     st.metric("Vol Ratio", f"{volume.get('vol_ratio', 0):.2f}x")
                 
-                if volume.get('volume_surge', False):
-                    st.warning("⚠️ VOLUME SURGE DETECTED!")
+                col1, col2 = st.columns(2)
+                with col1:
+                    vol_trend = volume.get('vol_trend_pct', 0)
+                    trend_emoji = "📈" if vol_trend > 0 else "📉" if vol_trend < 0 else "➡️"
+                    st.metric("Volume Trend", f"{trend_emoji} {vol_trend:+.1f}%")
+                with col2:
+                    if volume.get('volume_surge', False):
+                        st.warning("⚠️ VOLUME SURGE DETECTED!")
+                    else:
+                        st.info("📊 Normal Volume")
+                
                 if volume.get('above_vwap', False):
                     st.success("✅ Price above VWAP")
                 else:
                     st.error("❌ Price below VWAP")
+        
+        # Confidence Breakdown
+        st.markdown("#### 🎯 Signal Confidence Breakdown")
+        conf_data = signal.get('confidence', {})
+        factors = conf_data.get('factors', {})
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            rsi_score = factors.get('rsi_zone', 0)
+            st.metric("RSI Zone", f"{rsi_score:.0%}", help="RSI in neutral zone (40-60) = 100%")
+        with col2:
+            macd_score = factors.get('macd_confirmation', 0)
+            st.metric("MACD Confirm", f"{macd_score:.0%}", help="MACD above signal line = 100%")
+        with col3:
+            vol_score = factors.get('volume_confirmed', 0)
+            st.metric("Volume", f"{vol_score:.0%}", help="Volume > 1.2x avg = 100%")
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            trend_score = factors.get('trend_strength', 0)
+            st.metric("ADX Trend", f"{trend_score:.0%}", help="ADX > 25 = 100%")
+        with col2:
+            conflu_score = factors.get('timeframe_confluence', 0)
+            st.metric("Confluence", f"{conflu_score:.0%}", help="> 75% timeframe agreement = 100%")
+        with col3:
+            pattern_score = factors.get('pattern_quality', 0)
+            st.metric("Patterns", f"{pattern_score:.0%}", help="Pattern score > 50 = 100%")
+        
+        regime_mult = conf_data.get('regime_multiplier', 1.0)
+        regime_note = "📈 Boosted (Trending)" if regime_mult > 1 else "➡️ Normal" if regime_mult == 1 else "📉 Reduced (Ranging)"
+        st.caption(f"Market Regime: {regime_note} ({regime_mult:.1f}x multiplier)")

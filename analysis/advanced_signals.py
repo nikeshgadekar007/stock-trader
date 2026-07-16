@@ -222,6 +222,15 @@ class AdvancedSignalEngine:
         elif total_score < -50:
             signal = 'SELL'
         
+        # Calculate volume data
+        volume = self._calculate_volume_data(primary_df)
+        
+        # Calculate market regime
+        regime = self.detect_market_regime(primary_df)
+        
+        # Calculate signal confidence
+        confidence = self.calculate_signal_confidence(momentum, patterns, confluence, volume, regime)
+        
         return {
             'symbol': symbol,
             'signal': signal,
@@ -230,7 +239,10 @@ class AdvancedSignalEngine:
             'patterns': patterns,
             'momentum': momentum,
             'ema_strategy': ema_strategy,
-            'current_price': primary_df['Close'].iloc[-1]
+            'current_price': primary_df['Close'].iloc[-1],
+            'volume': volume,
+            'regime': regime,
+            'confidence': confidence
         }
     
     def generate_signal(self, symbol: str) -> Dict:
@@ -317,9 +329,24 @@ class AdvancedSignalEngine:
         return cci.iloc[-1] if not cci.isna().all() else 0.0
     
     def _calculate_aroon(self, df: pd.DataFrame, period: int = 25) -> Dict:
-        aroon_up = df['High'].rolling(window=period + 1).apply(lambda x: float(np.argmax(x))) / period * 100
-        aroon_down = df['Low'].rolling(window=period + 1).apply(lambda x: float(np.argmin(x))) / period * 100
-        return {'up': aroon_up.iloc[-1] if not aroon_up.isna().all() else 50.0, 'down': aroon_down.iloc[-1] if not aroon_down.isna().all() else 50.0}
+        """Calculate Aroon indicator - fixed version"""
+        aroon_up = []
+        aroon_down = []
+        
+        for i in range(period, len(df)):
+            window_high = df['High'].iloc[i-period+1:i+1]
+            window_low = df['Low'].iloc[i-period+1:i+1]
+            
+            # Find days since highest high and lowest low
+            days_since_high = period - 1 - window_high.idxmax()
+            days_since_low = period - 1 - window_low.idxmin()
+            
+            aroon_up.append((period - days_since_high) / period * 100)
+            aroon_down.append((period - days_since_low) / period * 100)
+        
+        if len(aroon_up) > 0:
+            return {'up': aroon_up[-1], 'down': aroon_down[-1]}
+        return {'up': 50.0, 'down': 50.0}
     
     def _calculate_mfi(self, df: pd.DataFrame, period: int = 14) -> float:
         typical_price = (df['High'] + df['Low'] + df['Close']) / 3
@@ -450,4 +477,162 @@ class AdvancedSignalEngine:
             'ema_9': ema_9_curr, 'ema_21': ema_21_curr, 'ema_40': ema_40_curr,
             'alignment': alignment, 'crossovers': crossovers,
             'price_above_ema9': price_above_ema9, 'trend_strength': trend_strength
+        }
+    
+    def _calculate_volume_data(self, df: pd.DataFrame) -> Dict:
+        """Calculate volume analysis data"""
+        if len(df) < 20:
+            return {}
+        
+        current_volume = df['Volume'].iloc[-1]
+        avg_volume = df['Volume'].rolling(20).mean().iloc[-1]
+        vol_ratio = current_volume / avg_volume if avg_volume > 0 else 1.0
+        
+        # Volume surge detection
+        volume_surge = current_volume > avg_volume * 1.5
+        
+        # VWAP for volume analysis
+        vwap = self._calculate_vwap(df)
+        current_price = df['Close'].iloc[-1]
+        above_vwap = current_price > vwap
+        
+        # Volume trend (last 5 candles vs previous 5)
+        vol_current_5 = df['Volume'].iloc[-5:].mean()
+        vol_prev_5 = df['Volume'].iloc[-10:-5].mean() if len(df) >= 10 else avg_volume
+        vol_trend = (vol_current_5 - vol_prev_5) / vol_prev_5 * 100 if vol_prev_5 > 0 else 0
+        
+        return {
+            'current_volume': int(current_volume),
+            'avg_volume': int(avg_volume),
+            'vol_ratio': round(vol_ratio, 2),
+            'volume_surge': volume_surge,
+            'above_vwap': above_vwap,
+            'vol_trend_pct': round(vol_trend, 1)
+        }
+    
+    def detect_market_regime(self, df: pd.DataFrame) -> Dict:
+        """Detect if market is trending or ranging"""
+        if len(df) < 50:
+            return {'regime': 'UNKNOWN', 'strength': 0}
+        
+        # Calculate ADX for trend strength
+        adx_data = self._calculate_adx(df)
+        adx = adx_data['adx']
+        
+        # Calculate Bollinger Band width for range detection
+        bb_upper, bb_lower = self._calculate_bollinger(df)
+        bb_width = (bb_upper - bb_lower) / df['Close'].rolling(20).mean().iloc[-1]
+        
+        # Determine regime
+        if adx > 25:
+            regime = 'TRENDING'
+            strength = min(adx, 100)
+        else:
+            regime = 'RANGING'
+            strength = 100 - adx
+        
+        # Check for strong trend
+        ema_9 = df['Close'].ewm(span=9).mean()
+        ema_21 = df['Close'].ewm(span=21).mean()
+        ema_slope = (ema_9.iloc[-1] - ema_9.iloc[-20]) / ema_9.iloc[-20] * 100 if len(df) >= 20 else 0
+        
+        return {
+            'regime': regime,
+            'strength': strength,
+            'adx': adx,
+            'bb_width': bb_width,
+            'trend_slope': ema_slope,
+            'direction': 'BULLISH' if ema_slope > 0.5 else 'BEARISH' if ema_slope < -0.5 else 'NEUTRAL'
+        }
+    
+    def calculate_signal_confidence(self, momentum: Dict, patterns: Dict, confluence: Dict, volume: Dict, regime: Dict) -> Dict:
+        """Calculate confidence score for the signal"""
+        confidence_factors = []
+        
+        # 1. RSI confirmation (not overbought/oversold for entries)
+        rsi = momentum.get('rsi_14', 50)
+        if 40 <= rsi <= 60:
+            confidence_factors.append(1.0)  # Neutral zone - good entry
+        elif rsi < 30:
+            confidence_factors.append(0.8)  # Oversold - potential reversal
+        elif rsi > 70:
+            confidence_factors.append(0.8)  # Overbought - potential reversal
+        else:
+            confidence_factors.append(0.5)
+        
+        # 2. MACD confirmation
+        macd = momentum.get('macd', 0)
+        macd_signal = momentum.get('macd_signal', 0)
+        if macd > macd_signal:
+            confidence_factors.append(1.0)
+        else:
+            confidence_factors.append(0.5)
+        
+        # 3. Volume confirmation
+        vol_ratio = volume.get('vol_ratio', 1.0)
+        if vol_ratio > 1.2:
+            confidence_factors.append(1.0)  # Good volume
+        elif vol_ratio > 0.8:
+            confidence_factors.append(0.7)
+        else:
+            confidence_factors.append(0.4)
+        
+        # 4. ADX trend strength
+        adx = momentum.get('adx', 25)
+        if adx > 25:
+            confidence_factors.append(1.0)  # Strong trend
+        else:
+            confidence_factors.append(0.6)  # Weak trend
+        
+        # 5. Timeframe confluence
+        confluence_pct = confluence.get('confluence_pct', 0)
+        if confluence_pct > 75:
+            confidence_factors.append(1.0)
+        elif confluence_pct > 50:
+            confidence_factors.append(0.8)
+        else:
+            confidence_factors.append(0.5)
+        
+        # 6. Pattern quality
+        pattern_score = patterns.get('score', 0)
+        if abs(pattern_score) > 50:
+            confidence_factors.append(1.0)
+        elif abs(pattern_score) > 25:
+            confidence_factors.append(0.8)
+        else:
+            confidence_factors.append(0.5)
+        
+        # Calculate overall confidence
+        avg_confidence = sum(confidence_factors) / len(confidence_factors) if confidence_factors else 0.5
+        
+        # Adjust for market regime
+        if regime['regime'] == 'TRENDING' and regime['strength'] > 40:
+            regime_multiplier = 1.2  # Better signals in trending markets
+        elif regime['regime'] == 'RANGING':
+            regime_multiplier = 0.8  # Lower confidence in ranging markets
+        else:
+            regime_multiplier = 1.0
+        
+        final_confidence = min(avg_confidence * regime_multiplier, 1.0)
+        
+        # Determine confidence level
+        if final_confidence >= 0.8:
+            level = 'HIGH'
+        elif final_confidence >= 0.6:
+            level = 'MEDIUM'
+        else:
+            level = 'LOW'
+        
+        return {
+            'confidence': round(final_confidence * 100, 1),
+            'level': level,
+            'factors': {
+                'rsi_zone': confidence_factors[0],
+                'macd_confirmation': confidence_factors[1],
+                'volume_confirmed': confidence_factors[2],
+                'trend_strength': confidence_factors[3],
+                'timeframe_confluence': confidence_factors[4],
+                'pattern_quality': confidence_factors[5]
+            },
+            'regime_multiplier': regime_multiplier
         }
