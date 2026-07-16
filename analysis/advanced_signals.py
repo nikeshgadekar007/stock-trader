@@ -334,12 +334,16 @@ class AdvancedSignalEngine:
         aroon_down = []
         
         for i in range(period, len(df)):
-            window_high = df['High'].iloc[i-period+1:i+1]
-            window_low = df['Low'].iloc[i-period+1:i+1]
+            window_high = df['High'].iloc[i-period+1:i+1].reset_index(drop=True)
+            window_low = df['Low'].iloc[i-period+1:i+1].reset_index(drop=True)
             
-            # Find days since highest high and lowest low
-            days_since_high = period - 1 - window_high.idxmax()
-            days_since_low = period - 1 - window_low.idxmin()
+            # Find position of highest high and lowest low (positional)
+            high_pos = window_high.values.argmax()
+            low_pos = window_low.values.argmin()
+            
+            # Days since highest high and lowest low
+            days_since_high = period - 1 - high_pos
+            days_since_low = period - 1 - low_pos
             
             aroon_up.append((period - days_since_high) / period * 100)
             aroon_down.append((period - days_since_low) / period * 100)
