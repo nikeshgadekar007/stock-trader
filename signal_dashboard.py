@@ -1,6 +1,8 @@
-"""Advanced Signal Dashboard"""
+"""Advanced Signal Dashboard with ML, Market Breadth & Backtesting"""
 import streamlit as st
 from analysis.advanced_signals import AdvancedSignalEngine
+from analysis.market_analysis import MarketAnalyzer
+import pandas as pd
 
 def render_signal_dashboard():
     st.header("📊 Advanced Intraday Signal Generator")
@@ -11,6 +13,8 @@ def render_signal_dashboard():
         st.session_state.hold_signals = []
         st.session_state.sell_signals = []
         st.session_state.error_symbols = []
+        st.session_state.market_analysis = None
+        st.session_state.ml_predictor = None
     
     st.subheader("💰 Trading Capital")
     col0, col1 = st.columns([2, 3])
@@ -23,6 +27,16 @@ def render_signal_dashboard():
     st.info(f"📌 Max Risk Per Trade: ${max_risk_amount:.2f} ({max_risk_pct}% of ${trading_capital:,.2f})")
     
     st.markdown("---")
+    
+    # Advanced Features Toggle
+    with st.expander("⚙️ Advanced Analysis Settings", expanded=False):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            use_ml = st.checkbox("🤖 ML Prediction", value=True, help="Use Machine Learning to predict signal outcomes")
+        with col2:
+            use_market = st.checkbox("📊 Market Breadth", value=True, help="Validate signals against market conditions")
+        with col3:
+            use_backtest = st.checkbox("📈 Backtest Validation", value=True, help="Show historical win rate for similar setups")
     
     col1, col2 = st.columns([3, 1])
     with col1:
@@ -37,12 +51,53 @@ def render_signal_dashboard():
         all_signals = []
         error_symbols = []
         
+        # Initialize market analyzer if enabled
+        market_analyzer = None
+        if use_market:
+            with st.spinner("Fetching market breadth data..."):
+                market_analyzer = MarketAnalyzer()
+                market_analyzer.calculate_market_breadth()
+                st.session_state.market_analysis = market_analyzer.breadth_indicators
+        
+        # Initialize ML predictor if enabled
+        ml_predictor = None
+        if use_ml:
+            with st.spinner("Training ML model..."):
+                from analysis.ml_signal_predictor import MLSignalPredictor
+                ml_predictor = MLSignalPredictor()
+                train_result = ml_predictor.train('SPY', '2y')
+                if train_result.get('success'):
+                    st.session_state.ml_predictor = ml_predictor
+                    st.session_state.ml_metrics = train_result.get('metrics', {})
+        
         with st.spinner("Analyzing stocks..."):
             for symbol in symbols:
                 signal = engine.generate_signal(symbol)
                 if 'error' in signal:
                     error_symbols.append((symbol, signal['error']))
                 else:
+                    # Add ML prediction
+                    if use_ml and ml_predictor and ml_predictor.is_trained:
+                        try:
+                            import yfinance as yf
+                            ticker = yf.Ticker(symbol)
+                            df = ticker.history(period='6mo', auto_adjust=True)
+                            if not df.empty:
+                                ml_result = ml_predictor.predict(df)
+                                signal['ml_prediction'] = ml_result
+                        except:
+                            signal['ml_prediction'] = {'ml_signal': 'HOLD', 'ml_confidence': 0}
+                    
+                    # Add market validation
+                    if use_market and market_analyzer:
+                        market_validation = market_analyzer.validate_signal_with_market(signal['signal'], symbol)
+                        signal['market_validation'] = market_validation
+                    
+                    # Add backtest validation
+                    if use_backtest:
+                        backtest_result = _quick_backtest(symbol, signal['signal'])
+                        signal['backtest'] = backtest_result
+                    
                     all_signals.append(signal)
         
         st.session_state.error_symbols = error_symbols
@@ -329,3 +384,154 @@ def _render_signal_card(signal, rank, action_type, trading_capital=10000, max_ri
         regime_mult = conf_data.get('regime_multiplier', 1.0)
         regime_note = "📈 Boosted (Trending)" if regime_mult > 1 else "➡️ Normal" if regime_mult == 1 else "📉 Reduced (Ranging)"
         st.caption(f"Market Regime: {regime_note} ({regime_mult:.1f}x multiplier)")
+        
+        # ML Prediction Section
+        ml_pred = signal.get('ml_prediction', {})
+        if ml_pred and ml_pred.get('ml_signal'):
+            st.markdown("#### 🤖 ML Model Prediction")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                ml_sig = ml_pred.get('ml_signal', 'HOLD')
+                ml_emoji = "🟢" if ml_sig == 'BUY' else "🔴" if ml_sig == 'SELL' else "⚪"
+                st.metric("ML Signal", f"{ml_emoji} {ml_sig}")
+            with col2:
+                st.metric("ML Confidence", f"{ml_pred.get('ml_confidence', 0):.1f}%")
+            with col3:
+                rf_prob = ml_pred.get('rf_probability', 0)
+                gb_prob = ml_pred.get('gb_probability', 0)
+                st.metric("RF/GB Proba", f"{rf_prob:.0f}%/{gb_prob:.0f}%")
+            
+            # ML agreement check
+            if ml_pred.get('ml_signal') == signal.get('signal'):
+                st.success("✅ ML model agrees with technical signal")
+            else:
+                st.warning("⚠️ ML model disagrees with technical signal")
+        
+        # Market Validation Section
+        market_val = signal.get('market_validation', {})
+        if market_val:
+            st.markdown("#### 📊 Market Breadth Validation")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                val = market_val.get('validation', 'NEUTRAL')
+                val_emoji = "✅" if val == 'CONFIRMED' else "⚠️" if val == 'WEAK' else "➡️"
+                st.metric("Validation", f"{val_emoji} {val}")
+            with col2:
+                st.metric("Market Health", market_val.get('market_health', 'N/A'))
+            with col3:
+                st.metric("Sector", f"{market_val.get('sector_name', 'N/A')} ({market_val.get('sector_trend', 'N/A')})")
+            
+            # Breadth indicators
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Breadth Score", f"{market_val.get('breadth_score', 0):.1f}")
+            with col2:
+                st.metric("Sector Breadth", f"{market_val.get('sector_breadth', 0):.1f}")
+            with col3:
+                st.metric("A/D Ratio", f"{market_val.get('ad_ratio', 1.0):.2f}")
+            
+            # Confirmations and warnings
+            confirmations = market_val.get('confirmations', [])
+            warnings_list = market_val.get('warnings', [])
+            if confirmations:
+                for c in confirmations:
+                    st.success(f"✅ {c}")
+            if warnings_list:
+                for w in warnings_list:
+                    st.warning(f"⚠️ {w}")
+        
+        # Backtest Section
+        backtest = signal.get('backtest', {})
+        if backtest:
+            st.markdown("#### 📈 Backtest Validation")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Win Rate", f"{backtest.get('win_rate', 0):.1f}%")
+            with col2:
+                st.metric("Avg Return", f"{backtest.get('avg_return', 0):.2f}%")
+            with col3:
+                st.metric("Sample Size", backtest.get('sample_size', 0))
+            
+            if backtest.get('win_rate', 0) > 60:
+                st.success("✅ Historical win rate above 60%")
+            elif backtest.get('win_rate', 0) > 40:
+                st.info("📊 Historical win rate moderate")
+            else:
+                st.warning("⚠️ Historical win rate below 40%")
+        
+        # ML Training Metrics (show once)
+        if st.session_state.get('ml_metrics'):
+            with st.expander("🤖 ML Model Performance"):
+                metrics = st.session_state.ml_metrics
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Ensemble Accuracy", f"{metrics.get('ensemble_accuracy', 0):.1f}%")
+                with col2:
+                    st.metric("Ensemble Precision", f"{metrics.get('ensemble_precision', 0):.1f}%")
+                with col3:
+                    st.metric("Ensemble Recall", f"{metrics.get('ensemble_recall', 0):.1f}%")
+                st.caption(f"Trained on {metrics.get('train_samples', 0)} samples, {metrics.get('feature_count', 0)} features")
+        
+        # Market Breadth Overview (show once)
+        if st.session_state.get('market_analysis'):
+            with st.expander("📊 Market Breadth Overview"):
+                ma = st.session_state.market_analysis
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Market Health", ma.get('market_health', 'N/A'))
+                with col2:
+                    st.metric("Breadth Score", f"{ma.get('breadth_score', 0):.1f}")
+                with col3:
+                    st.metric("Bullish ETFs", f"{ma.get('bullish_etfs', 0)}/{ma.get('total_etfs', 0)}")
+                with col4:
+                    st.metric("SPY RSI", f"{ma.get('spy_rsi', 50):.1f}")
+
+
+def _quick_backtest(symbol: str, signal: str) -> dict:
+    """Quick backtest to estimate win rate for similar setups"""
+    try:
+        import yfinance as yf
+        ticker = yf.Ticker(symbol)
+        df = ticker.history(period='1y', auto_adjust=True)
+        
+        if df.empty or len(df) < 50:
+            return {'win_rate': 0, 'avg_return': 0, 'sample_size': 0}
+        
+        # Calculate RSI
+        delta = df['Close'].diff()
+        gain = delta.where(delta > 0, 0).rolling(14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
+        rs = gain / loss.replace(0, float('inf'))
+        df['rsi'] = 100 - (100 / (1 + rs))
+        
+        # Calculate MACD
+        ema12 = df['Close'].ewm(span=12).mean()
+        ema26 = df['Close'].ewm(span=26).mean()
+        df['macd'] = ema12 - ema26
+        df['macd_signal'] = df['macd'].ewm(span=9).mean()
+        
+        # Generate signals
+        df['signal'] = 'HOLD'
+        df.loc[(df['rsi'] < 40) & (df['macd'] > df['macd_signal']), 'signal'] = 'BUY'
+        df.loc[(df['rsi'] > 60) & (df['macd'] < df['macd_signal']), 'signal'] = 'SELL'
+        
+        # Calculate forward returns
+        df['forward_return'] = df['Close'].shift(-5) / df['Close'] - 1
+        
+        # Filter for similar signals
+        similar = df[df['signal'] == signal].dropna()
+        
+        if len(similar) < 5:
+            return {'win_rate': 50, 'avg_return': 0, 'sample_size': len(similar)}
+        
+        wins = (similar['forward_return'] > 0).sum()
+        win_rate = (wins / len(similar)) * 100
+        avg_return = similar['forward_return'].mean() * 100
+        
+        return {
+            'win_rate': round(win_rate, 1),
+            'avg_return': round(avg_return, 2),
+            'sample_size': len(similar)
+        }
+    except Exception as e:
+        return {'win_rate': 0, 'avg_return': 0, 'sample_size': 0}
