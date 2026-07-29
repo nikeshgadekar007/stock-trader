@@ -40,7 +40,7 @@ def render_signal_dashboard():
     
     col1, col2 = st.columns([3, 1])
     with col1:
-        symbols_input = st.text_input("Enter Stock Symbols (comma separated)", "AAPL, TSLA, NVDA, MSFT, AMZN, GOOGL, META", help="US Stock symbols", key="symbols_input")
+        symbols_input = st.text_input("Enter Stock Symbols (comma separated)", "AAPL,MSFT,NVDA,AMZN,GOOGL,GOOG,META,BRK-B,LLY,AVGO,JPM,XOM,UNH,V,PG,MA,COST,JNJ,HD,WMT,ABBV,NFLX,BAC,MRK,KO,PEP,CVX,AMD,TMUS,ADBE,WFC,MCD,DIS,CRM,CSCO,ACN,ABT,LIN,QCOM,IBM,INTU,GE,TXN,CAT,AMGN,PM,AMAT,ISRG,AXP,NOW,SPGI,UBER,GS,BKNG,LOW,PFE,ETN,UPS,MDT,DE,SCHW,HON,UNP,CB,ADI,COP,NEE,PANW,TJX,GILD,SBUX,SYK,VRTX,LMT,MO,MDLZ,REGN,PLTR,BSX,CI,SO,BLK,MU,KKR,GEHC,ITW,NKE,C,INTC,SHW,T,CVS,EQIX,HCA,ETR,SLB", help="US Stock symbols", key="symbols_input")
     with col2:
         analyze_btn = st.button("🔍 Analyze", type="primary", key="analyze_btn")
     
