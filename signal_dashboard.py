@@ -170,7 +170,7 @@ def render_signal_dashboard():
                     return 'background-color: #e2e3f1; color: #3730a3; font-weight: bold'
                 return ''
             
-            styled_df = df.style.applymap(color_signal, subset=['Signal'])
+            styled_df = df.style.map(color_signal, subset=['Signal'])
             st.dataframe(styled_df, use_container_width=True, hide_index=True)
             
             # Download CSV button
