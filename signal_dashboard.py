@@ -70,35 +70,39 @@ def render_signal_dashboard():
                     st.session_state.ml_predictor = ml_predictor
                     st.session_state.ml_metrics = train_result.get('metrics', {})
         
-        with st.spinner("Analyzing stocks..."):
-            for symbol in symbols:
-                signal = engine.generate_signal(symbol)
-                if 'error' in signal:
-                    error_symbols.append((symbol, signal['error']))
-                else:
-                    # Add ML prediction
-                    if use_ml and ml_predictor and ml_predictor.is_trained:
-                        try:
-                            import yfinance as yf
-                            ticker = yf.Ticker(symbol)
-                            df = ticker.history(period='6mo', auto_adjust=True)
-                            if not df.empty:
-                                ml_result = ml_predictor.predict(df)
-                                signal['ml_prediction'] = ml_result
-                        except:
-                            signal['ml_prediction'] = {'ml_signal': 'HOLD', 'ml_confidence': 0}
-                    
-                    # Add market validation
-                    if use_market and market_analyzer:
-                        market_validation = market_analyzer.validate_signal_with_market(signal['signal'], symbol)
-                        signal['market_validation'] = market_validation
-                    
-                    # Add backtest validation
-                    if use_backtest:
-                        backtest_result = _quick_backtest(symbol, signal['signal'])
-                        signal['backtest'] = backtest_result
-                    
-                    all_signals.append(signal)
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        total_symbols = len(symbols)
+        
+        for i, symbol in enumerate(symbols):
+            status_text.text(f"🔍 Analyzing {symbol} ({i+1}/{total_symbols})...")
+            signal = engine.generate_signal(symbol)
+            if 'error' in signal:
+                error_symbols.append((symbol, signal['error']))
+            else:
+                # Add ML prediction
+                if use_ml and ml_predictor and ml_predictor.is_trained:
+                    try:
+                        import yfinance as yf
+                        ticker = yf.Ticker(symbol)
+                        df = ticker.history(period='6mo', auto_adjust=True)
+                        if not df.empty:
+                            ml_result = ml_predictor.predict(df)
+                            signal['ml_prediction'] = ml_result
+                    except:
+                        signal['ml_prediction'] = {'ml_signal': 'HOLD', 'ml_confidence': 0}
+                
+                # Add market validation
+                if use_market and market_analyzer:
+                    market_validation = market_analyzer.validate_signal_with_market(signal['signal'], symbol)
+                    signal['market_validation'] = market_validation
+                
+                # Add backtest validation
+                if use_backtest:
+                    backtest_result = _quick_backtest(symbol, signal['signal'])
+                    signal['backtest'] = backtest_result
+                
+                all_signals.append(signal)
         
         st.session_state.error_symbols = error_symbols
         st.session_state.buy_signals = sorted([s for s in all_signals if s['signal'] == 'BUY'], key=lambda x: x['total_score'], reverse=True)
@@ -118,6 +122,67 @@ def render_signal_dashboard():
     col1.success(f"🟢 BUY: {len(st.session_state.buy_signals)}")
     col2.info(f"⚪ HOLD: {len(st.session_state.hold_signals)}")
     col3.error(f"🔴 SELL: {len(st.session_state.sell_signals)}")
+    
+    st.markdown("---")
+    
+    # Summary Table - All Signals at a Glance
+    if st.session_state.signals_analyzed:
+        st.subheader("📋 Signals Summary Table")
+        
+        all_signals = st.session_state.buy_signals + st.session_state.hold_signals + st.session_state.sell_signals
+        if all_signals:
+            # Build table data
+            table_data = []
+            for s in all_signals:
+                ml_pred = s.get('ml_prediction', {})
+                backtest = s.get('backtest', {})
+                confidence = s.get('confidence', {})
+                table_data.append({
+                    'Symbol': s['symbol'],
+                    'Signal': s['signal'],
+                    'Price': f"${s['current_price']:.2f}",
+                    'Score': s['total_score'],
+                    'Confidence': f"{confidence.get('confidence', 50):.0f}%",
+                    'ML Signal': ml_pred.get('ml_signal', '—'),
+                    'ML Conf': f"{ml_pred.get('ml_confidence', 0):.0f}%",
+                    'Win Rate': f"{backtest.get('win_rate', 0):.0f}%",
+                    'R:R': f"{s.get('risk_reward', 0):.1f}x",
+                    'Entry': f"${s['entry']:.2f}",
+                    'Target': f"${s['target']:.2f}",
+                    'Stop Loss': f"${s['stop_loss']:.2f}",
+                })
+            
+            df = pd.DataFrame(table_data)
+            
+            # Sort by Score descending (best signals first), then by Confidence
+            df['_sort_score'] = df['Score'].astype(int)
+            df['_sort_conf'] = df['Confidence'].str.rstrip('%').astype(float)
+            df = df.sort_values(['_sort_score', '_sort_conf'], ascending=[False, False])
+            df = df.drop(columns=['_sort_score', '_sort_conf'])
+            
+            # Color-code the Signal column
+            def color_signal(val):
+                if val == 'BUY':
+                    return 'background-color: #d4edda; color: #155724; font-weight: bold'
+                elif val == 'SELL':
+                    return 'background-color: #f8d7da; color: #721c24; font-weight: bold'
+                elif val == 'HOLD':
+                    return 'background-color: #e2e3f1; color: #3730a3; font-weight: bold'
+                return ''
+            
+            styled_df = df.style.applymap(color_signal, subset=['Signal'])
+            st.dataframe(styled_df, use_container_width=True, hide_index=True)
+            
+            # Download CSV button
+            csv = df.to_csv(index=False)
+            st.download_button(
+                label="📥 Download Signals as CSV",
+                data=csv,
+                file_name="advanced_signals.csv",
+                mime="text/csv",
+            )
+        else:
+            st.info("No signals generated. Click 'Analyze' to scan stocks.")
     
     st.markdown("---")
     
