@@ -1,7 +1,8 @@
-"""Advanced Signal Dashboard with ML, Market Breadth & Backtesting"""
+"""Advanced Signal Dashboard with ML, Market Breadth, Intermarket & Backtesting"""
 import streamlit as st
 from analysis.advanced_signals import AdvancedSignalEngine
 from analysis.market_analysis import MarketAnalyzer
+from analysis.intermarket import IntermarketAnalyzer
 import pandas as pd
 
 def render_signal_dashboard():
@@ -58,6 +59,12 @@ def render_signal_dashboard():
                 market_analyzer = MarketAnalyzer()
                 market_analyzer.calculate_market_breadth()
                 st.session_state.market_analysis = market_analyzer.breadth_indicators
+        
+        # Initialize intermarket analyzer
+        with st.spinner("Analyzing intermarket conditions..."):
+            intermarket = IntermarketAnalyzer()
+            intermarket_summary = intermarket.get_summary()
+            st.session_state.intermarket_data = intermarket_summary
         
         # Initialize ML predictor if enabled
         ml_predictor = None
@@ -587,6 +594,66 @@ def _render_signal_card(signal, rank, action_type, trading_capital=10000, max_ri
                     st.metric("Bullish ETFs", f"{ma.get('bullish_etfs', 0)}/{ma.get('total_etfs', 0)}")
                 with col4:
                     st.metric("SPY RSI", f"{ma.get('spy_rsi', 50):.1f}")
+        
+        # Intermarket Analysis (show once)
+        if st.session_state.get('intermarket_data'):
+            with st.expander("🌍 Intermarket Analysis & Regime Detection"):
+                im = st.session_state.intermarket_data
+                regime = im.get('regime', {})
+                
+                # Regime header
+                vix = regime.get('vix', 20)
+                vix_regime = regime.get('vix_regime', 'NORMAL')
+                direction = regime.get('direction', 'NEUTRAL')
+                strategy = regime.get('strategy', 'NEUTRAL')
+                strategy_desc = regime.get('strategy_desc', '')
+                pos_mult = im.get('position_multiplier', 1.0)
+                
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("VIX", f"{vix:.1f}", delta=f"{vix_regime}")
+                with col2:
+                    dir_emoji = "📈" if 'BULL' in direction else "📉" if 'BEAR' in direction else "➡️"
+                    st.metric("Direction", f"{dir_emoji} {direction}")
+                with col3:
+                    st.metric("Strategy", strategy, help=strategy_desc)
+                with col4:
+                    pos_color = "🟢" if pos_mult >= 0.8 else "🟡" if pos_mult >= 0.5 else "🔴"
+                    st.metric("Position Size", f"{pos_color} {pos_mult:.0%}")
+                
+                st.caption(f"💡 **{strategy_desc}**")
+                
+                # Intermarket signals
+                signals = regime.get('signals', [])
+                if signals:
+                    st.markdown("**Intermarket Signals:**")
+                    for s in signals:
+                        if s.startswith('✅'):
+                            st.success(s)
+                        elif s.startswith('⚠️'):
+                            st.warning(s)
+                
+                # Macro data table
+                macro_data = im.get('macro_data', {})
+                if macro_data:
+                    st.markdown("**Macro Indicators:**")
+                    macro_rows = []
+                    for ticker, data in macro_data.items():
+                        if 'error' not in data:
+                            trend_emoji = "🟢" if data.get('trend') == 'BULLISH' else "🔴" if data.get('trend') == 'BEARISH' else "⚪"
+                            macro_rows.append({
+                                'Ticker': ticker,
+                                'Name': data.get('name', ''),
+                                'Price': f"${data.get('price', 0):.2f}",
+                                '5D': f"{data.get('change_5d', 0):+.1f}%",
+                                '20D': f"{data.get('change_20d', 0):+.1f}%",
+                                'Trend': f"{trend_emoji} {data.get('trend', 'N/A')}",
+                                'RSI': f"{data.get('rsi', 50):.0f}"
+                            })
+                    
+                    if macro_rows:
+                        macro_df = pd.DataFrame(macro_rows)
+                        st.dataframe(macro_df, use_container_width=True, hide_index=True)
 
 
 def _quick_backtest(symbol: str, signal: str) -> dict:
