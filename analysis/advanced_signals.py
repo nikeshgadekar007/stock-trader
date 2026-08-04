@@ -315,6 +315,37 @@ class AdvancedSignalEngine:
             result['sentiment'] = {'overall_sentiment': 'NO_DATA', 'sentiment_score': 0}
             result['earnings'] = {'has_earnings': False, 'warning': False}
         
+        # Add relative strength vs SPY
+        try:
+            rs_data = self._calculate_relative_strength(symbol)
+            result['relative_strength'] = rs_data
+            
+            # Adjust confidence based on relative strength
+            conf = result.get('confidence', {})
+            current_conf = conf.get('confidence', 50) / 100.0
+            
+            rs_score = rs_data.get('rs_score', 0)
+            if signal == 'BUY' and rs_score > 0:
+                current_conf += 0.10  # Outperforming SPY
+            elif signal == 'BUY' and rs_score < -5:
+                current_conf -= 0.10  # Underperforming SPY
+            elif signal == 'SELL' and rs_score < 0:
+                current_conf += 0.10  # Underperforming SPY supports sell
+            
+            current_conf = max(0.05, min(0.99, current_conf))
+            conf['confidence'] = round(current_conf * 100, 1)
+            
+            if current_conf >= 0.8:
+                conf['level'] = 'HIGH'
+            elif current_conf >= 0.6:
+                conf['level'] = 'MEDIUM'
+            else:
+                conf['level'] = 'LOW'
+            
+            result['confidence'] = conf
+        except Exception:
+            result['relative_strength'] = {'rs_score': 0, 'vs_spy': 0}
+        
         return result
     
     def _calculate_rsi(self, df: pd.DataFrame, period: int = 14) -> float:

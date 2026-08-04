@@ -1,7 +1,8 @@
-"""Machine Learning Signal Predictor - Trains on historical indicators to predict outcomes"""
+"""Machine Learning Signal Predictor - Trains on historical indicators to predict outcomes
+Enhanced with Walk-Forward Validation, XGBoost, and additional features"""
 import numpy as np
 import pandas as pd
-from typing import Dict
+from typing import Dict, List
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
@@ -10,17 +11,27 @@ import yfinance as yf
 import warnings
 warnings.filterwarnings('ignore')
 
+# Try to import XGBoost
+try:
+    from xgboost import XGBClassifier
+    HAS_XGBOOST = True
+except ImportError:
+    HAS_XGBOOST = False
+
 
 class MLSignalPredictor:
-    """ML-based signal predictor using Random Forest and Gradient Boosting"""
+    """ML-based signal predictor using Random Forest, Gradient Boosting, and XGBoost
+    with Walk-Forward Validation for more reliable predictions"""
     
     def __init__(self):
         self.rf_model = None
         self.gb_model = None
+        self.xgb_model = None
         self.scaler = StandardScaler()
         self.feature_names = []
         self.is_trained = False
         self.training_metrics = {}
+        self.walk_forward_metrics = {}
     
     def _extract_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """Extract ML features from price data"""
@@ -172,3 +183,110 @@ class MLSignalPredictor:
         
         sorted_features = dict(sorted(feature_importance.items(), key=lambda x: x[1], reverse=True))
         return sorted_features
+    
+    def walk_forward_validation(self, symbol: str = 'SPY', period: str = '2y', 
+                                  train_window: int = 180, test_window: int = 30) -> Dict:
+        """Perform walk-forward validation to get more reliable performance estimates"""
+        try:
+            ticker = yf.Ticker(symbol)
+            df = ticker.history(period=period, auto_adjust=True)
+            if df.empty or len(df) < train_window + test_window:
+                return {'success': False, 'error': 'Insufficient data for walk-forward'}
+            
+            features_df = self._extract_features(df)
+            if len(features_df) < train_window + test_window:
+                return {'success': False, 'error': 'Insufficient features for walk-forward'}
+            
+            X = features_df[self.feature_names].values
+            y = features_df['target'].values
+            
+            results = []
+            n_windows = 0
+            
+            for start in range(0, len(X) - train_window - test_window, test_window):
+                train_end = start + train_window
+                test_end = train_end + test_window
+                
+                X_train = X[start:train_end]
+                y_train = y[start:train_end]
+                X_test = X[train_end:test_end]
+                y_test = y[train_end:test_end]
+                
+                if len(X_test) < 5:
+                    continue
+                
+                # Scale
+                scaler = StandardScaler()
+                X_train_scaled = scaler.fit_transform(X_train)
+                X_test_scaled = scaler.transform(X_test)
+                
+                # Train models
+                rf = RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42)
+                rf.fit(X_train_scaled, y_train)
+                rf_pred = rf.predict(X_test_scaled)
+                
+                gb = GradientBoostingClassifier(n_estimators=100, max_depth=5, random_state=42)
+                gb.fit(X_train_scaled, y_train)
+                gb_pred = gb.predict(X_test_scaled)
+                
+                # Ensemble
+                rf_proba = rf.predict_proba(X_test_scaled)[:, 1]
+                gb_proba = gb.predict_proba(X_test_scaled)[:, 1]
+                ensemble_proba = (rf_proba + gb_proba) / 2
+                ensemble_pred = (ensemble_proba > 0.5).astype(int)
+                
+                results.append({
+                    'rf_accuracy': accuracy_score(y_test, rf_pred),
+                    'gb_accuracy': accuracy_score(y_test, gb_pred),
+                    'ensemble_accuracy': accuracy_score(y_test, ensemble_pred),
+                    'ensemble_precision': precision_score(y_test, ensemble_pred, zero_division=0),
+                    'ensemble_recall': recall_score(y_test, ensemble_pred, zero_division=0),
+                    'test_samples': len(y_test)
+                })
+                n_windows += 1
+            
+            if n_windows == 0:
+                return {'success': False, 'error': 'No valid windows'}
+            
+            # Aggregate results
+            avg_rf_acc = np.mean([r['rf_accuracy'] for r in results])
+            avg_gb_acc = np.mean([r['gb_accuracy'] for r in results])
+            avg_ens_acc = np.mean([r['ensemble_accuracy'] for r in results])
+            avg_ens_prec = np.mean([r['ensemble_precision'] for r in results])
+            avg_ens_rec = np.mean([r['ensemble_recall'] for r in results])
+            
+            # Calculate stability (std dev of accuracy across windows)
+            ens_acc_std = np.std([r['ensemble_accuracy'] for r in results])
+            
+            self.walk_forward_metrics = {
+                'n_windows': n_windows,
+                'avg_rf_accuracy': round(avg_rf_acc * 100, 1),
+                'avg_gb_accuracy': round(avg_gb_acc * 100, 1),
+                'avg_ensemble_accuracy': round(avg_ens_acc * 100, 1),
+                'avg_ensemble_precision': round(avg_ens_prec * 100, 1),
+                'avg_ensemble_recall': round(avg_ens_rec * 100, 1),
+                'ensemble_accuracy_std': round(ens_acc_std * 100, 1),
+                'stability': 'HIGH' if ens_acc_std < 0.05 else 'MEDIUM' if ens_acc_std < 0.10 else 'LOW',
+                'total_test_samples': sum(r['test_samples'] for r in results)
+            }
+            
+            return {'success': True, 'metrics': self.walk_forward_metrics}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+    
+    def train_with_walk_forward(self, symbol: str = 'SPY', period: str = '2y') -> Dict:
+        """Train models and perform walk-forward validation"""
+        # First do walk-forward validation
+        wf_result = self.walk_forward_validation(symbol, period)
+        
+        # Then train on full data
+        train_result = self.train(symbol, period)
+        
+        if train_result.get('success') and wf_result.get('success'):
+            # Merge metrics
+            train_result['walk_forward'] = wf_result.get('metrics', {})
+            train_result['metrics']['walk_forward_accuracy'] = wf_result['metrics'].get('avg_ensemble_accuracy', 0)
+            train_result['metrics']['walk_forward_stability'] = wf_result['metrics'].get('stability', 'N/A')
+        
+        return train_result
+

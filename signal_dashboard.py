@@ -62,13 +62,14 @@ def render_signal_dashboard():
         # Initialize ML predictor if enabled
         ml_predictor = None
         if use_ml:
-            with st.spinner("Training ML model..."):
+            with st.spinner("Training ML model with walk-forward validation..."):
                 from analysis.ml_signal_predictor import MLSignalPredictor
                 ml_predictor = MLSignalPredictor()
-                train_result = ml_predictor.train('SPY', '2y')
+                train_result = ml_predictor.train_with_walk_forward('SPY', '2y')
                 if train_result.get('success'):
                     st.session_state.ml_predictor = ml_predictor
                     st.session_state.ml_metrics = train_result.get('metrics', {})
+                    st.session_state.walk_forward_metrics = train_result.get('walk_forward', {})
         
         progress_bar = st.progress(0)
         status_text = st.empty()
