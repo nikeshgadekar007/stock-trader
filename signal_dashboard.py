@@ -450,6 +450,42 @@ def _render_signal_card(signal, rank, action_type, trading_capital=10000, max_ri
         regime_note = "📈 Boosted (Trending)" if regime_mult > 1 else "➡️ Normal" if regime_mult == 1 else "📉 Reduced (Ranging)"
         st.caption(f"Market Regime: {regime_note} ({regime_mult:.1f}x multiplier)")
         
+        # News Sentiment Section
+        sentiment_data = signal.get('sentiment', {})
+        if sentiment_data and sentiment_data.get('overall_sentiment') != 'NO_DATA':
+            st.markdown("#### 📰 News Sentiment Analysis")
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                sent = sentiment_data.get('overall_sentiment', 'NEUTRAL')
+                sent_emoji = "🟢" if sent == 'POSITIVE' else "🔴" if sent == 'NEGATIVE' else "⚪"
+                st.metric("Sentiment", f"{sent_emoji} {sent}")
+            with col2:
+                st.metric("Score", f"{sentiment_data.get('sentiment_score', 0):.2f}")
+            with col3:
+                st.metric("Articles", sentiment_data.get('article_count', 0))
+            with col4:
+                pos = sentiment_data.get('positive_count', 0)
+                neg = sentiment_data.get('negative_count', 0)
+                st.metric("Pos/Neg", f"{pos}/{neg}")
+            
+            # Show top headlines
+            news_items = sentiment_data.get('news', [])
+            if news_items:
+                with st.expander("📋 Recent Headlines"):
+                    for article in news_items[:5]:
+                        analysis = article.get('analysis', {})
+                        sent_icon = "🟢" if analysis.get('sentiment') == 'POSITIVE' else "🔴" if analysis.get('sentiment') == 'NEGATIVE' else "⚪"
+                        st.caption(f"{sent_icon} {article.get('title', '')} ({article.get('publisher', '')})")
+        
+        # Earnings Warning
+        earnings_data = signal.get('earnings', {})
+        if earnings_data and earnings_data.get('warning', False):
+            days = earnings_data.get('days_until', '?')
+            st.warning(f"⚠️ **Earnings in {days} day(s)!** ({earnings_data.get('earnings_date', 'Unknown')}) — Signal confidence reduced by 15% due to binary event risk")
+        elif earnings_data and earnings_data.get('has_earnings', False):
+            days = earnings_data.get('days_until', '?')
+            st.info(f"📅 Earnings in {days} days ({earnings_data.get('earnings_date', 'Unknown')})")
+        
         # ML Prediction Section
         ml_pred = signal.get('ml_prediction', {})
         if ml_pred and ml_pred.get('ml_signal'):

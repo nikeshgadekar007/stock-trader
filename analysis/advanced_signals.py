@@ -273,6 +273,48 @@ class AdvancedSignalEngine:
         result['target'] = round(target, 2)
         result['risk_reward'] = round(abs(target - entry) / abs(stop_loss - entry), 2) if stop_loss != entry else 0
         
+        # Add sentiment analysis
+        try:
+            from analysis.sentiment import analyze_news, check_earnings_proximity
+            news_data = analyze_news(symbol)
+            earnings_data = check_earnings_proximity(symbol)
+            result['sentiment'] = news_data
+            result['earnings'] = earnings_data
+            
+            # Adjust confidence based on sentiment
+            sentiment_score = news_data.get('sentiment_score', 0)
+            conf = result.get('confidence', {})
+            current_conf = conf.get('confidence', 50) / 100.0
+            
+            # Sentiment adjustment: +15% for aligned, -20% for opposed
+            if signal == 'BUY' and sentiment_score > 0.1:
+                current_conf += 0.15
+            elif signal == 'BUY' and sentiment_score < -0.1:
+                current_conf -= 0.20
+            elif signal == 'SELL' and sentiment_score < -0.1:
+                current_conf += 0.15
+            elif signal == 'SELL' and sentiment_score > 0.1:
+                current_conf -= 0.20
+            
+            # Earnings penalty
+            if earnings_data.get('warning', False):
+                current_conf -= 0.15
+            
+            current_conf = max(0.05, min(0.99, current_conf))
+            conf['confidence'] = round(current_conf * 100, 1)
+            
+            if current_conf >= 0.8:
+                conf['level'] = 'HIGH'
+            elif current_conf >= 0.6:
+                conf['level'] = 'MEDIUM'
+            else:
+                conf['level'] = 'LOW'
+            
+            result['confidence'] = conf
+        except Exception:
+            result['sentiment'] = {'overall_sentiment': 'NO_DATA', 'sentiment_score': 0}
+            result['earnings'] = {'has_earnings': False, 'warning': False}
+        
         return result
     
     def _calculate_rsi(self, df: pd.DataFrame, period: int = 14) -> float:
