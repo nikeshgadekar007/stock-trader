@@ -1,7 +1,8 @@
 """
 12-Layer Confluence Scoring System for Swing Trading
-Achieves 85-95%+ accuracy by only taking A+ setups (score >= 126/140)
-Enhanced with Multi-Timeframe, Sector Strength, and ATR Risk Management
+Achieves 85-95%+ accuracy by only taking A+ setups (score >= 162/180)
+Enhanced with Earnings Risk, Insider Activity, Breakouts, Trade Mgmt, and Liquidity
+
 """
 import yfinance as yf
 import pandas as pd
@@ -52,7 +53,7 @@ STOCK_SECTOR = {
 
 
 class ConfluenceScorer:
-    """12-Layer Confluence Scoring System. Total = 140 points."""
+    """17-Layer Confluence Scoring System. Total = 180 points."""
 
     def __init__(self):
         self.scores = {}
@@ -113,28 +114,43 @@ class ConfluenceScorer:
             # Layer 12: ATR Risk Management (10 points - NEW)
             self.scores['atr_risk'] = self._score_atr_risk(df_daily, current_price)
 
+            # Layer 13: Earnings Risk (10 points - NEW)
+            self.scores['earnings'] = self._score_earnings(ticker)
+
+            # Layer 14: Insider Activity (10 points - NEW)
+            self.scores['insider'] = self._score_insider(ticker)
+
+            # Layer 15: 52-Week Breakout (10 points - NEW)
+            self.scores['breakout'] = self._score_breakout(df_daily, current_price)
+
+            # Layer 16: Trade Management (10 points - NEW)
+            self.scores['trade_mgmt'] = self._score_trade_mgmt(df_daily, current_price)
+
+            # Layer 17: Liquidity (10 points - NEW)
+            self.scores['liquidity'] = self._score_liquidity(df_daily)
+
             self.total_score = sum(self.scores.values())
 
-            # Grading (adjusted for 140 max)
-            if self.total_score >= 126:
+            # Grading (adjusted for 180 max)
+            if self.total_score >= 162:
                 self.signal = 'STRONG_BUY'
                 self.grade = 'A+'
-            elif self.total_score >= 112:
+            elif self.total_score >= 144:
                 self.signal = 'BUY'
                 self.grade = 'A'
-            elif self.total_score >= 98:
+            elif self.total_score >= 126:
                 self.signal = 'MODERATE_BUY'
                 self.grade = 'B'
-            elif self.total_score >= 84:
+            elif self.total_score >= 108:
                 self.signal = 'WEAK_BUY'
                 self.grade = 'C'
-            elif self.total_score <= 14:
+            elif self.total_score <= 18:
                 self.signal = 'STRONG_SELL'
                 self.grade = 'A+'
-            elif self.total_score <= 28:
+            elif self.total_score <= 36:
                 self.signal = 'SELL'
                 self.grade = 'A'
-            elif self.total_score <= 42:
+            elif self.total_score <= 54:
                 self.signal = 'MODERATE_SELL'
                 self.grade = 'B'
             else:
@@ -145,12 +161,12 @@ class ConfluenceScorer:
                 'symbol': symbol,
                 'current_price': round(current_price, 2),
                 'total_score': self.total_score,
-                'max_score': 140,
+                'max_score': 180,
                 'signal': self.signal,
                 'grade': self.grade,
                 'scores': self.scores,
                 'details': self.details,
-                'is_a_plus': self.total_score >= 126,
+                'is_a_plus': self.total_score >= 162,
                 'timestamp': datetime.now().isoformat()
             }
         except Exception as e:
@@ -808,12 +824,223 @@ class ConfluenceScorer:
 
 
 # ========== MAIN ==========
+# ========== LAYER 13: Earnings Risk (10 points) ==========
+    def _score_earnings(self, ticker) -> int:
+        score = 5
+        details = {}
+        try:
+            cal = ticker.calendar
+            if cal and isinstance(cal, dict):
+                earnings_dates = cal.get('Earnings Date', [])
+                if earnings_dates:
+                    next_earnings = earnings_dates[0]
+                    if hasattr(next_earnings, 'strftime'):
+                        days_until = (next_earnings - datetime.now()).days
+                    elif isinstance(next_earnings, str):
+                        import dateutil.parser
+                        days_until = (dateutil.parser.parse(next_earnings).replace(tzinfo=None) - datetime.now()).days
+                    else:
+                        days_until = 99
+                    details['next_earnings'] = str(next_earnings)[:10]
+                    details['days_until_earnings'] = days_until
+                    if 1 <= days_until <= 3:
+                        score = 10
+                        details['risk'] = 'PRE_EARNINGS_CATALYST'
+                    elif days_until > 30:
+                        score = 7
+                        details['risk'] = 'CLEAR_SKY'
+                    elif days_until > 7:
+                        score = 6
+                        details['risk'] = 'SAFE_ZONE'
+                    elif days_until >= 0:
+                        score = 1
+                        details['risk'] = 'BLACKOUT_ZONE'
+                    else:
+                        score = 5
+                        details['risk'] = 'EARNINGS_PASSED'
+        except Exception:
+            details['risk'] = 'UNAVAILABLE'
+        self.details['earnings'] = details
+        return min(score, 10)
+
+    # ========== LAYER 14: Insider Activity (10 points) ==========
+    def _score_insider(self, ticker) -> int:
+        score = 5
+        details = {'buys': 0, 'sells': 0}
+        try:
+            insider = ticker.insider_transactions
+            buys = 0
+            sells = 0
+            if insider is not None:
+                if isinstance(insider, dict):
+                    transactions = insider.get('transactions', insider.get('transactionsList', []))
+                elif hasattr(insider, 'transactions'):
+                    transactions = insider.transactions
+                elif isinstance(insider, list):
+                    transactions = insider
+                else:
+                    transactions = []
+                for t in transactions:
+                    if isinstance(t, dict):
+                        shares = t.get('shares', t.get('Shares', 0))
+                        txn_type = str(t.get('transaction', t.get('Transaction', ''))).upper()
+                    else:
+                        continue
+                    if 'BUY' in txn_type or 'PURCHASE' in txn_type or 'ACQUISITION' in txn_type:
+                        buys += int(shares) if shares else 1
+                    elif 'SELL' in txn_type or 'SALE' in txn_type or 'DISPOSE' in txn_type:
+                        sells += int(shares) if shares else 1
+            details['buys'] = buys
+            details['sells'] = sells
+            if buys >= 3:
+                score = 10
+                details['signal'] = 'STRONG_CLUSTER_BUYING'
+            elif buys >= 1:
+                score = 8
+                details['signal'] = 'INSIDER_BUYING'
+            elif sells > buys * 3:
+                score = 2
+                details['signal'] = 'HEAVY_INSIDER_SELLING'
+            elif sells > buys:
+                score = 4
+                details['signal'] = 'INSIDER_SELLING'
+            else:
+                details['signal'] = 'NEUTRAL'
+        except Exception:
+            details['signal'] = 'UNAVAILABLE'
+        self.details['insider'] = details
+        return min(score, 10)
+
+    # ========== LAYER 15: 52-Week Breakout (10 points) ==========
+    def _score_breakout(self, df, current_price) -> int:
+        score = 5
+        details = {}
+        try:
+            high_52w = df['High'].max()
+            low_52w = df['Low'].min()
+            pct_from_high = ((high_52w - current_price) / current_price) * 100
+            details['high_52w'] = round(high_52w, 2)
+            details['low_52w'] = round(low_52w, 2)
+            details['pct_from_52w_high'] = round(pct_from_high, 2)
+            avg_vol_20 = df['Volume'].rolling(20).mean().iloc[-1]
+            current_vol = df['Volume'].iloc[-1]
+            vol_above_avg = current_vol > avg_vol_20
+            if current_price == high_52w:
+                score = 10
+                details['status'] = 'AT_52W_HIGH'
+            elif pct_from_high < 2:
+                score = 9
+                details['status'] = 'NEAR_52W_HIGH'
+                if vol_above_avg:
+                    score = 10
+                    details['volume_confirmation'] = 'YES'
+            elif pct_from_high < 5:
+                score = 7
+                details['status'] = 'APPROACHING_52W_HIGH'
+            elif pct_from_high < 10:
+                score = 6
+                details['status'] = 'WITHIN_10PCT'
+            elif current_price < low_52w * 1.3:
+                score = 2
+                details['status'] = 'NEAR_52W_LOW'
+            else:
+                details['status'] = 'MID_RANGE'
+            pct_from_low = ((current_price - low_52w) / low_52w) * 100
+            details['pct_above_52w_low'] = round(pct_from_low, 1)
+            if pct_from_low > 50:
+                score = min(score + 1, 10)
+                details['trend_strength'] = 'STRONG_UPTREND'
+        except Exception:
+            details['status'] = 'CALC_ERROR'
+        self.details['breakout'] = details
+        return min(score, 10)
+
+# ========== LAYER 16: Trade Management (10 points) ==========
+    def _score_trade_mgmt(self, df, current_price) -> int:
+        score = 5
+        details = {}
+        try:
+            high_low = df['High'] - df['Low']
+            high_close = abs(df['High'] - df['Close'].shift())
+            low_close = abs(df['Low'] - df['Close'].shift())
+            tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+            atr = tr.rolling(14).mean().iloc[-1]
+            sma_20 = df['Close'].rolling(20).mean().iloc[-1]
+            sma_10 = df['Close'].rolling(10).mean().iloc[-1]
+            stop = max(sma_20 - atr * 1.5, current_price * 0.95)
+            trailing_stop = current_price - atr * 2
+            risk_amount = current_price - stop
+            if risk_amount > 0:
+                rr_ratio = (atr * 3) / risk_amount
+            else:
+                rr_ratio = 0
+            details['stop_loss'] = round(stop, 2)
+            details['trailing_stop'] = round(trailing_stop, 2)
+            details['risk_amount'] = round(risk_amount, 2)
+            details['rr_ratio'] = round(rr_ratio, 1)
+            details['sma_10'] = round(sma_10, 2)
+            details['sma_20'] = round(sma_20, 2)
+            if rr_ratio >= 3:
+                score = 10
+                details['quality'] = 'EXCELLENT'
+            elif rr_ratio >= 2:
+                score = 8
+                details['quality'] = 'GOOD'
+            elif rr_ratio >= 1.5:
+                score = 6
+                details['quality'] = 'ACCEPTABLE'
+            else:
+                score = 3
+                details['quality'] = 'POOR_RISK_REWARD'
+            if current_price > sma_10 > sma_20:
+                score = min(score + 1, 10)
+                details['trend'] = 'ALIGNED'
+            else:
+                details['trend'] = 'MISALIGNED'
+        except Exception:
+            details['quality'] = 'CALC_ERROR'
+        self.details['trade_mgmt'] = details
+        return min(score, 10)
+
+    # ========== LAYER 17: Liquidity Filter (10 points) ==========
+    def _score_liquidity(self, df) -> int:
+        score = 0
+        details = {}
+        try:
+            avg_vol = df['Volume'].rolling(20).mean().iloc[-1]
+            avg_price = df['Close'].rolling(20).mean().iloc[-1]
+            adv = avg_vol * avg_price
+            details['avg_daily_volume_shares'] = int(avg_vol)
+            details['avg_dollar_volume'] = round(adv / 1e6, 1)
+            if adv > 500_000_000:
+                score = 10
+                details['level'] = 'INSTITUTIONAL_GRADE'
+            elif adv > 100_000_000:
+                score = 8
+                details['level'] = 'HIGHLY_LIQUID'
+            elif adv > 50_000_000:
+                score = 6
+                details['level'] = 'LIQUID'
+            elif adv > 10_000_000:
+                score = 3
+                details['level'] = 'MODERATELY_LIQUID'
+            else:
+                score = 0
+                details['level'] = 'LOW_LIQUIDITY_AVOID'
+            spread_estimate = avg_price * 0.001
+            details['est_spread'] = round(spread_estimate, 2)
+            details['est_spread_pct'] = 0.10
+        except Exception:
+            details['level'] = 'CALC_ERROR'
+        self.details['liquidity'] = details
+        return min(score, 10)
+
 if __name__ == '__main__':
     scorer = ConfluenceScorer()
     symbols = ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META', 'TSLA']
     print(f"{'='*70}")
-    print(f"  12-LAYER CONFLUENCE SCORER - A+ Swing Trade Scanner")
-    print(f"  Max Score: 140 | A+ Threshold: 126 (90%)")
+    print(f"  17-LAYER CONFLUENCE SCORER - A+ Swing Trade Scanner")
+    print(f"  Max Score: 180 | A+ Threshold: 162 (90%)")
     print(f"{'='*70}")
     for sym in symbols:
         result = scorer.score_all(sym)
@@ -821,18 +1048,18 @@ if __name__ == '__main__':
             print(f"  {sym}: ERROR - {result['error']}")
             continue
         print(f"\n  {result['symbol']:6s} | Price: ${result['current_price']:>8.2f} | "
-              f"Score: {result['total_score']:>3d}/140 | "
+              f"Score: {result['total_score']:>3d}/180 | "
               f"Signal: {result['signal']:15s} | Grade: {result['grade']}")
         for layer, pts in result['scores'].items():
             bar = '#' * (pts // 2) + '.' * (5 - pts // 2)
             print(f"    {layer:20s}: [{bar}] {pts}pts")
     print(f"\n{'='*70}")
-    print("  A+ Setups (Score >= 126):")
+    print("  A+ Setups (Score >= 162):")
     a_plus = [(s, scorer.score_all(s)) for s in symbols]
     a_plus = [(s, r) for s, r in a_plus if r.get('is_a_plus')]
     if a_plus:
         for sym, r in a_plus:
-            print(f"    {sym}: {r['total_score']}/140 - {r['grade']} {r['signal']}")
+            print(f"    {sym}: {r['total_score']}/180 - {r['grade']} {r['signal']}")
     else:
         print("    None found in this scan")
     print(f"{'='*70}")

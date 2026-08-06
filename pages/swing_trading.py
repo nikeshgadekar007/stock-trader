@@ -1,6 +1,6 @@
 """
-Swing Trading Dashboard - 12-Layer Confluence Scoring System
-Only shows A+ setups (score >= 126/140) for maximum accuracy
+Swing Trading Dashboard - 17-Layer Confluence Scoring System
+Only shows A+ setups (score >= 162/180) for maximum accuracy
 """
 import streamlit as st
 import pandas as pd
@@ -10,27 +10,27 @@ from analysis.confluence_scorer import ConfluenceScorer
 st.set_page_config(page_title="Swing Trading Signals", page_icon="🎯", layout="wide")
 
 st.title("🎯 Swing Trading — A+ Setups Only")
-st.caption("12-Layer Confluence Scoring System | Only trades with score ≥ 126/140 are shown")
+st.caption("17-Layer Confluence Scoring System | Only trades with score ≥ 162/180 are shown")
 
 # Sidebar
 with st.sidebar:
     st.header("⚙️ Settings")
-    min_score = st.slider("Minimum Score Threshold", 80, 140, 126, 2, 
-                          help="Only show signals above this score. 126+ = A+ setups (90%)")
+    min_score = st.slider("Minimum Score Threshold", 80, 180, 162, 2, 
+                          help="Only show signals above this score. 162+ = A+ setups (90%)")
     max_stocks = st.slider("Max Stocks to Scan", 5, 50, 20, 5)
     
     st.markdown("---")
-    st.markdown("### 📊 Score Guide (/140)")
+    st.markdown("### 📊 Score Guide (/180)")
     st.markdown("| Score | Grade | Signal |")
     st.markdown("|-------|-------|--------|")
-    st.markdown("| 126-140 | A+ | STRONG BUY |")
-    st.markdown("| 112-125 | A | BUY |")
-    st.markdown("| 98-111 | B | MODERATE BUY |")
-    st.markdown("| 84-97 | C | WEAK BUY |")
-    st.markdown("| 56-83 | D | HOLD |")
+    st.markdown("| 162-180 | A+ | STRONG BUY |")
+    st.markdown("| 144-161 | A | BUY |")
+    st.markdown("| 126-143 | B | MODERATE BUY |")
+    st.markdown("| 108-125 | C | WEAK BUY |")
+    st.markdown("| 72-107 | D | HOLD |")
     
     st.markdown("---")
-    st.markdown("### 🎯 12 Layers")
+    st.markdown("### 🎯 17 Layers")
     st.markdown("1. Multi-Timeframe Trend (30 pts)")
     st.markdown("2. Support/Resistance (15 pts)")
     st.markdown("3. Fibonacci Levels (10 pts)")
@@ -43,6 +43,11 @@ with st.sidebar:
     st.markdown("10. ML Prediction (10 pts)")
     st.markdown("11. Sector Strength (10 pts)")
     st.markdown("12. ATR Risk Mgmt (10 pts)")
+    st.markdown("13. Earnings Risk (10 pts)")
+    st.markdown("14. Insider Activity (10 pts)")
+    st.markdown("15. 52-Wk Breakout (10 pts)")
+    st.markdown("16. Trade Management (10 pts)")
+    st.markdown("17. Liquidity Filter (10 pts)")
 
 # Default watchlist
 DEFAULT_SYMBOLS = [
@@ -86,12 +91,12 @@ def _render_swing_card(result, rank):
     grade_emoji = "🏆" if grade == 'A+' else "✅" if grade == 'A' else "📊" if grade == 'B' else "👀"
     
     # Score bar
-    bar_length = min(score // 2, 70)
-    score_bar = "█" * bar_length + "░" * (70 - bar_length)
+    bar_length = min(score // 2, 90)
+    score_bar = "█" * bar_length + "░" * (90 - bar_length)
     
     st.markdown(f"### {grade_emoji} #{rank} {symbol} — **{signal}** ({grade})")
-    st.markdown(f"**Score: {score}/140**")
-    st.progress(score / 140)
+    st.markdown(f"**Score: {score}/180**")
+    st.progress(score / 180)
     
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -315,16 +320,16 @@ if analyze_btn and symbols:
     results.sort(key=lambda x: x['total_score'], reverse=True)
     
     # Summary
-    a_plus = [r for r in results if r['total_score'] >= 126]
-    a_grade = [r for r in results if 112 <= r['total_score'] < 126]
-    b_grade = [r for r in results if 98 <= r['total_score'] < 112]
-    c_grade = [r for r in results if 84 <= r['total_score'] < 98]
+    a_plus = [r for r in results if r['total_score'] >= 162]
+    a_grade = [r for r in results if 144 <= r['total_score'] < 162]
+    b_grade = [r for r in results if 126 <= r['total_score'] < 144]
+    c_grade = [r for r in results if 108 <= r['total_score'] < 126]
     
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("🏆 A+ Setups (126+)", len(a_plus))
-    col2.metric("✅ A Grade (112-125)", len(a_grade))
-    col3.metric("📊 B Grade (98-111)", len(b_grade))
-    col4.metric("👀 C Grade (84-97)", len(c_grade))
+    col1.metric("🏆 A+ Setups (162+)", len(a_plus))
+    col2.metric("✅ A Grade (144-161)", len(a_grade))
+    col3.metric("📊 B Grade (126-143)", len(b_grade))
+    col4.metric("👀 C Grade (108-125)", len(c_grade))
     
     st.markdown("---")
     
@@ -356,6 +361,13 @@ if analyze_btn and symbols:
                 'Fundamentals': scores.get('fundamentals', 0),
                 'Regime': scores.get('regime', 0),
                 'ML': scores.get('ml', 0),
+                'Sector': scores.get('sector', 0),
+                'ATR': scores.get('atr_risk', 0),
+                'Earnings': scores.get('earnings', 0),
+                'Insider': scores.get('insider', 0),
+                'Breakout': scores.get('breakout', 0),
+                'TradeMgmt': scores.get('trade_mgmt', 0),
+                'Liquidity': scores.get('liquidity', 0),
             })
         
         df = pd.DataFrame(table_data)
