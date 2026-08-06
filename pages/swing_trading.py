@@ -1,6 +1,6 @@
 """
-Swing Trading Dashboard - 10-Layer Confluence Scoring System
-Only shows A+ setups (score >= 90/100) for maximum accuracy
+Swing Trading Dashboard - 12-Layer Confluence Scoring System
+Only shows A+ setups (score >= 126/140) for maximum accuracy
 """
 import streamlit as st
 import pandas as pd
@@ -10,28 +10,28 @@ from analysis.confluence_scorer import ConfluenceScorer
 st.set_page_config(page_title="Swing Trading Signals", page_icon="🎯", layout="wide")
 
 st.title("🎯 Swing Trading — A+ Setups Only")
-st.caption("10-Layer Confluence Scoring System | Only trades with score ≥ 90/100 are shown")
+st.caption("12-Layer Confluence Scoring System | Only trades with score ≥ 126/140 are shown")
 
 # Sidebar
 with st.sidebar:
     st.header("⚙️ Settings")
-    min_score = st.slider("Minimum Score Threshold", 60, 100, 90, 5, 
-                          help="Only show signals above this score. 90+ = A+ setups")
+    min_score = st.slider("Minimum Score Threshold", 80, 140, 126, 2, 
+                          help="Only show signals above this score. 126+ = A+ setups (90%)")
     max_stocks = st.slider("Max Stocks to Scan", 5, 50, 20, 5)
     
     st.markdown("---")
-    st.markdown("### 📊 Score Guide")
+    st.markdown("### 📊 Score Guide (/140)")
     st.markdown("| Score | Grade | Signal |")
     st.markdown("|-------|-------|--------|")
-    st.markdown("| 90-100 | A+ | STRONG BUY |")
-    st.markdown("| 80-89 | A | BUY |")
-    st.markdown("| 70-79 | B | MODERATE BUY |")
-    st.markdown("| 60-69 | C | WEAK BUY |")
-    st.markdown("| 40-59 | D | HOLD |")
+    st.markdown("| 126-140 | A+ | STRONG BUY |")
+    st.markdown("| 112-125 | A | BUY |")
+    st.markdown("| 98-111 | B | MODERATE BUY |")
+    st.markdown("| 84-97 | C | WEAK BUY |")
+    st.markdown("| 56-83 | D | HOLD |")
     
     st.markdown("---")
-    st.markdown("### 🎯 10 Layers")
-    st.markdown("1. Trend Alignment (20 pts)")
+    st.markdown("### 🎯 12 Layers")
+    st.markdown("1. Multi-Timeframe Trend (30 pts)")
     st.markdown("2. Support/Resistance (15 pts)")
     st.markdown("3. Fibonacci Levels (10 pts)")
     st.markdown("4. Candlestick Patterns (10 pts)")
@@ -41,6 +41,8 @@ with st.sidebar:
     st.markdown("8. Fundamentals (10 pts)")
     st.markdown("9. Market Regime (5 pts)")
     st.markdown("10. ML Prediction (10 pts)")
+    st.markdown("11. Sector Strength (10 pts)")
+    st.markdown("12. ATR Risk Mgmt (10 pts)")
 
 # Default watchlist
 DEFAULT_SYMBOLS = [
@@ -100,16 +102,16 @@ if analyze_btn and symbols:
     results.sort(key=lambda x: x['total_score'], reverse=True)
     
     # Summary
-    a_plus = [r for r in results if r['total_score'] >= 90]
-    a_grade = [r for r in results if 80 <= r['total_score'] < 90]
-    b_grade = [r for r in results if 70 <= r['total_score'] < 80]
-    c_grade = [r for r in results if 60 <= r['total_score'] < 70]
+    a_plus = [r for r in results if r['total_score'] >= 126]
+    a_grade = [r for r in results if 112 <= r['total_score'] < 126]
+    b_grade = [r for r in results if 98 <= r['total_score'] < 112]
+    c_grade = [r for r in results if 84 <= r['total_score'] < 98]
     
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("🏆 A+ Setups (90+)", len(a_plus))
-    col2.metric("✅ A Grade (80-89)", len(a_grade))
-    col3.metric("📊 B Grade (70-79)", len(b_grade))
-    col4.metric("👀 C Grade (60-69)", len(c_grade))
+    col1.metric("🏆 A+ Setups (126+)", len(a_plus))
+    col2.metric("✅ A Grade (112-125)", len(a_grade))
+    col3.metric("📊 B Grade (98-111)", len(b_grade))
+    col4.metric("👀 C Grade (84-97)", len(c_grade))
     
     st.markdown("---")
     
@@ -189,25 +191,25 @@ def _render_swing_card(result, rank):
     grade_emoji = "🏆" if grade == 'A+' else "✅" if grade == 'A' else "📊" if grade == 'B' else "👀"
     
     # Score bar
-    bar_length = min(score // 2, 50)
-    score_bar = "█" * bar_length + "░" * (50 - bar_length)
+    bar_length = min(score // 2, 70)
+    score_bar = "█" * bar_length + "░" * (70 - bar_length)
     
     st.markdown(f"### {grade_emoji} #{rank} {symbol} — **{signal}** ({grade})")
-    st.markdown(f"**Score: {score}/100**")
-    st.progress(score / 100)
+    st.markdown(f"**Score: {score}/140**")
+    st.progress(score / 140)
     
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric("Current Price", f"${price:.2f}")
     with col2:
-        st.metric("Total Score", f"{score}/100")
+        st.metric("Total Score", f"{score}/140")
     with col3:
         st.metric("Grade", f"{grade_emoji} {grade}")
     
     # Layer breakdown
-    with st.expander("📊 10-Layer Score Breakdown"):
+    with st.expander("📊 12-Layer Score Breakdown"):
         layers = [
-            ("Trend Alignment", "trend", 20),
+            ("Multi-Timeframe Trend", "trend", 30),
             ("Support/Resistance", "support_resistance", 15),
             ("Fibonacci Levels", "fibonacci", 10),
             ("Candlestick Patterns", "candlestick", 10),
@@ -217,6 +219,8 @@ def _render_swing_card(result, rank):
             ("Fundamentals", "fundamentals", 10),
             ("Market Regime", "regime", 5),
             ("ML Prediction", "ml", 10),
+            ("Sector Strength", "sector", 10),
+            ("ATR Risk Mgmt", "atr_risk", 10),
         ]
         
         for name, key, max_pts in layers:
