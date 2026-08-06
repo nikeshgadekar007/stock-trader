@@ -771,9 +771,22 @@ class ConfluenceScorer:
                 details['volatility'] = 'EXTREME (Avoid)'
                 details['risk_level'] = 'EXTREME_RISK'
             sma_20 = df['Close'].rolling(20).mean().iloc[-1]
-            stop_loss = sma_20 - atr_14 * 1.5
+            risk = atr_14 * 1.5
+            stop_loss = max(sma_20 - risk, current_price * 0.95)
             details['suggested_stop'] = round(stop_loss, 2)
             details['stop_loss_pct'] = round((current_price - stop_loss) / current_price * 100, 2)
+            loss_risk = current_price - stop_loss
+            if loss_risk > 0:
+                details['half_profit_price'] = round(current_price + loss_risk, 2)
+                details['half_profit_pct'] = round(loss_risk / current_price * 100, 2)
+                details['full_profit_price'] = round(current_price + 2 * loss_risk, 2)
+                details['full_profit_pct'] = round(2 * loss_risk / current_price * 100, 2)
+            else:
+                details['half_profit_price'] = round(current_price * 1.02, 2)
+                details['half_profit_pct'] = 2.0
+                details['full_profit_price'] = round(current_price * 1.04, 2)
+                details['full_profit_pct'] = 4.0
+            details['position_size'] = max(int(100 / (atr_14 * 2)), 1) if atr_14 > 0 else 0
             reward_target = current_price + atr_14 * 3
             details['reward_target'] = round(reward_target, 2)
             details['reward_pct'] = round((reward_target - current_price) / current_price * 100, 2)

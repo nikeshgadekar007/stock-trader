@@ -206,6 +206,28 @@ def _render_swing_card(result, rank):
     with col3:
         st.metric("Grade", f"{grade_emoji} {grade}")
     
+    # Trade levels
+    atr_details = details.get('atr_risk', {})
+    if atr_details:
+        st.markdown("---")
+        st.markdown("#### 💰 Trade Levels (ATR-Based)")
+        tc1, tc2, tc3 = st.columns(3)
+        with tc1:
+            sl_price = atr_details.get('suggested_stop', 0)
+            sl_pct = atr_details.get('stop_loss_pct', 0)
+            st.metric("🛑 STOP LOSS", f"${sl_price:.2f}", delta=f"-{sl_pct}%", delta_color="inverse")
+        with tc2:
+            hp_price = atr_details.get('half_profit_price', 0)
+            hp_pct = atr_details.get('half_profit_pct', 0)
+            st.metric("🎯 HALF PROFIT (50% Exit)", f"${hp_price:.2f}", delta=f"+{hp_pct}%")
+        with tc3:
+            fp_price = atr_details.get('full_profit_price', 0)
+            fp_pct = atr_details.get('full_profit_pct', 0)
+            st.metric("🚀 FULL PROFIT (100% Exit)", f"${fp_price:.2f}", delta=f"+{fp_pct}%")
+        pos_size = atr_details.get('position_size', 0)
+        if pos_size > 0:
+            st.caption(f"💡 Suggested position: **{pos_size} shares** for a $10k account (1% risk per trade = $100 max loss)")
+
     # Layer breakdown
     with st.expander("📊 12-Layer Score Breakdown"):
         layers = [
@@ -347,5 +369,24 @@ def _render_swing_card(result, rank):
                 st.metric("ML Signal", ml_details.get('ml_signal', 'N/A'))
             with col2:
                 st.metric("ML Confidence", f"{ml_details.get('ml_confidence', 0):.1f}%", ml_details.get('ml_level', ''))
+    
+    # ATR Risk Management details
+    atr_det = details.get('atr_risk', {})
+    if atr_det:
+        with st.expander("📐 ATR Risk Management Details"):
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.metric("ATR(14)", f"${atr_det.get('atr_14', 0):.2f}")
+                st.metric("ATR %", f"{atr_det.get('atr_pct', 0):.1f}%")
+                st.metric("Volatility", atr_det.get('volatility', 'N/A'))
+            with c2:
+                st.metric("Risk/Share", f"${atr_det.get('risk_per_share', 0):.2f}")
+                st.metric("Position Size", f"{atr_det.get('position_size', 0)} shares")
+                st.metric("Risk Level", atr_det.get('risk_level', 'N/A'))
+            with c3:
+                st.metric("R:R Ratio", f"1:{atr_det.get('risk_reward', 0):.1f}")
+                st.metric("R:R Grade", atr_det.get('rr_assessment', 'N/A'))
+                if atr_det.get('suggested_stop'):
+                    st.metric("Stop Price", f"${atr_det['suggested_stop']:.2f}", f"-{atr_det.get('stop_loss_pct', 0)}%")
     
     st.markdown("---")
