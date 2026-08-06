@@ -482,6 +482,36 @@ if analyze_btn and symbols:
             "text/csv"
         )
         
+        # Email alert
+        with st.expander("📧 Email Alerts", expanded=False):
+            ecol1, ecol2 = st.columns(2)
+            with ecol1:
+                smtp_server = st.text_input("SMTP Server", value="smtp.gmail.com", key="smtp_srv")
+                smtp_port = st.number_input("Port", value=587, key="smtp_port")
+                sender_email = st.text_input("Sender Email", value=st.session_state.get('sender_email', ''), key="sender_email")
+            with ecol2:
+                sender_pw = st.text_input("App Password", type="password", 
+                                          value=st.session_state.get('sender_pw', ''), key="sender_pw",
+                                          help="Gmail: generate App Password at myaccount.google.com/apppasswords")
+                recipient = st.text_input("Recipient Email", value=st.session_state.get('recipient', ''), key="recipient")
+            if st.button("📧 Send A+ Setups via Email", key="send_email_btn"):
+                if not sender_email or not sender_pw or not recipient:
+                    st.error("Fill all email fields")
+                else:
+                    from analysis.alert_engine import AlertEngine
+                    alert = AlertEngine(smtp_server=smtp_server, smtp_port=smtp_port,
+                                        sender_email=sender_email, sender_password=sender_pw,
+                                        recipient_email=recipient)
+                    with st.spinner("Sending..."):
+                        ok = alert.send_alerts(results, "[Stock Trader]")
+                    if ok:
+                        st.success(f"✅ Email sent to {recipient}!")
+                        st.session_state.sender_email = sender_email
+                        st.session_state.sender_pw = sender_pw
+                        st.session_state.recipient = recipient
+                    else:
+                        st.error("❌ Failed. Check SMTP settings and app password.")
+        
         st.markdown("---")
         
         # Detailed cards for each signal
