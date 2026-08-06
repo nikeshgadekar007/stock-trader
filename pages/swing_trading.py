@@ -72,111 +72,6 @@ with col2:
 
 symbols = [s.strip().upper() for s in symbols_input.split(",") if s.strip()]
 
-if analyze_btn and symbols:
-    results = []
-    errors = []
-    
-    progress_bar = st.progress(0)
-    status_text = st.empty()
-    
-    for i, symbol in enumerate(symbols):
-        status_text.text(f"🔍 Analyzing {symbol} ({i+1}/{len(symbols)})...")
-        
-        scorer = ConfluenceScorer()
-        result = scorer.score_all(symbol)
-        
-        if 'error' in result:
-            errors.append((symbol, result['error']))
-        elif result['total_score'] >= min_score:
-            results.append(result)
-        
-        progress_bar.progress((i + 1) / len(symbols))
-    
-    status_text.text("✅ Analysis complete!")
-    
-    # Show errors
-    for symbol, error in errors:
-        st.error(f"❌ {symbol}: {error}")
-    
-    # Sort by score descending
-    results.sort(key=lambda x: x['total_score'], reverse=True)
-    
-    # Summary
-    a_plus = [r for r in results if r['total_score'] >= 126]
-    a_grade = [r for r in results if 112 <= r['total_score'] < 126]
-    b_grade = [r for r in results if 98 <= r['total_score'] < 112]
-    c_grade = [r for r in results if 84 <= r['total_score'] < 98]
-    
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("🏆 A+ Setups (126+)", len(a_plus))
-    col2.metric("✅ A Grade (112-125)", len(a_grade))
-    col3.metric("📊 B Grade (98-111)", len(b_grade))
-    col4.metric("👀 C Grade (84-97)", len(c_grade))
-    
-    st.markdown("---")
-    
-    if not results:
-        st.warning(f"No stocks scored above {min_score}. Try lowering the threshold or scanning different stocks.")
-    else:
-        st.subheader(f"📋 Swing Trading Signals (Score ≥ {min_score})")
-        
-        # Build summary table
-        table_data = []
-        for r in results:
-            scores = r.get('scores', {})
-            table_data.append({
-                'Symbol': r['symbol'],
-                'Score': r['total_score'],
-                'Grade': r['grade'],
-                'Signal': r['signal'],
-                'Price': f"${r['current_price']:.2f}",
-                'Trend': scores.get('trend', 0),
-                'S/R': scores.get('support_resistance', 0),
-                'Fib': scores.get('fibonacci', 0),
-                'Candle': scores.get('candlestick', 0),
-                'Momentum': scores.get('momentum', 0),
-                'Volume': scores.get('volume', 0),
-                'Sentiment': scores.get('sentiment', 0),
-                'Fundamentals': scores.get('fundamentals', 0),
-                'Regime': scores.get('regime', 0),
-                'ML': scores.get('ml', 0),
-            })
-        
-        df = pd.DataFrame(table_data)
-        
-        # Color-code the Grade column
-        def color_grade(val):
-            if val == 'A+':
-                return 'background-color: #006400; color: white; font-weight: bold'
-            elif val == 'A':
-                return 'background-color: #228B22; color: white; font-weight: bold'
-            elif val == 'B':
-                return 'background-color: #FFD700; color: black; font-weight: bold'
-            elif val == 'C':
-                return 'background-color: #FF8C00; color: white'
-            return ''
-        
-        styled_df = df.style.map(color_grade, subset=['Grade'])
-        st.dataframe(styled_df, use_container_width=True, hide_index=True)
-        
-        # Download CSV
-        csv = df.to_csv(index=False)
-        st.download_button(
-            "📥 Download Signals as CSV",
-            csv,
-            f"swing_signals_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-            "text/csv"
-        )
-        
-        st.markdown("---")
-        
-        # Detailed cards for each signal
-        st.subheader("🔍 Detailed Analysis")
-        
-        for rank, result in enumerate(results, 1):
-            _render_swing_card(result, rank)
-
-
 def _render_swing_card(result, rank):
     """Render a detailed swing trading signal card"""
     symbol = result['symbol']
@@ -390,3 +285,108 @@ def _render_swing_card(result, rank):
                     st.metric("Stop Price", f"${atr_det['suggested_stop']:.2f}", f"-{atr_det.get('stop_loss_pct', 0)}%")
     
     st.markdown("---")
+if analyze_btn and symbols:
+    results = []
+    errors = []
+    
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+    
+    for i, symbol in enumerate(symbols):
+        status_text.text(f"🔍 Analyzing {symbol} ({i+1}/{len(symbols)})...")
+        
+        scorer = ConfluenceScorer()
+        result = scorer.score_all(symbol)
+        
+        if 'error' in result:
+            errors.append((symbol, result['error']))
+        elif result['total_score'] >= min_score:
+            results.append(result)
+        
+        progress_bar.progress((i + 1) / len(symbols))
+    
+    status_text.text("✅ Analysis complete!")
+    
+    # Show errors
+    for symbol, error in errors:
+        st.error(f"❌ {symbol}: {error}")
+    
+    # Sort by score descending
+    results.sort(key=lambda x: x['total_score'], reverse=True)
+    
+    # Summary
+    a_plus = [r for r in results if r['total_score'] >= 126]
+    a_grade = [r for r in results if 112 <= r['total_score'] < 126]
+    b_grade = [r for r in results if 98 <= r['total_score'] < 112]
+    c_grade = [r for r in results if 84 <= r['total_score'] < 98]
+    
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("🏆 A+ Setups (126+)", len(a_plus))
+    col2.metric("✅ A Grade (112-125)", len(a_grade))
+    col3.metric("📊 B Grade (98-111)", len(b_grade))
+    col4.metric("👀 C Grade (84-97)", len(c_grade))
+    
+    st.markdown("---")
+    
+    if not results:
+        st.warning(f"No stocks scored above {min_score}. Try lowering the threshold or scanning different stocks.")
+    else:
+        st.subheader(f"📋 Swing Trading Signals (Score ≥ {min_score})")
+        
+        # Build summary table
+        table_data = []
+        for r in results:
+            scores = r.get('scores', {})
+            table_data.append({
+                'Symbol': r['symbol'],
+                'Score': r['total_score'],
+                'Grade': r['grade'],
+                'Signal': r['signal'],
+                'Price': f"${r['current_price']:.2f}",
+                'Trend': scores.get('trend', 0),
+                'S/R': scores.get('support_resistance', 0),
+                'Fib': scores.get('fibonacci', 0),
+                'Candle': scores.get('candlestick', 0),
+                'Momentum': scores.get('momentum', 0),
+                'Volume': scores.get('volume', 0),
+                'Sentiment': scores.get('sentiment', 0),
+                'Fundamentals': scores.get('fundamentals', 0),
+                'Regime': scores.get('regime', 0),
+                'ML': scores.get('ml', 0),
+            })
+        
+        df = pd.DataFrame(table_data)
+        
+        # Color-code the Grade column
+        def color_grade(val):
+            if val == 'A+':
+                return 'background-color: #006400; color: white; font-weight: bold'
+            elif val == 'A':
+                return 'background-color: #228B22; color: white; font-weight: bold'
+            elif val == 'B':
+                return 'background-color: #FFD700; color: black; font-weight: bold'
+            elif val == 'C':
+                return 'background-color: #FF8C00; color: white'
+            return ''
+        
+        styled_df = df.style.map(color_grade, subset=['Grade'])
+        st.dataframe(styled_df, use_container_width=True, hide_index=True)
+        
+        # Download CSV
+        csv = df.to_csv(index=False)
+        st.download_button(
+            "📥 Download Signals as CSV",
+            csv,
+            f"swing_signals_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+            "text/csv"
+        )
+        
+        st.markdown("---")
+        
+        # Detailed cards for each signal
+        st.subheader("🔍 Detailed Analysis")
+        
+        for rank, result in enumerate(results, 1):
+            _render_swing_card(result, rank)
+
+
