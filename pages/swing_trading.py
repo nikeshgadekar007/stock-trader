@@ -99,6 +99,61 @@ symbols = [s.strip().upper() for s in symbols_input.split(",") if s.strip()]
 if st.session_state.auto_refresh:
     st_autorefresh(interval=st.session_state.refresh_interval * 1000, key="chart_refresh")
 
+def _build_trade_chart(symbol, current_price, atr_details):
+    """Build an interactive Plotly chart with trade levels"""
+    if not atr_details:
+        return None
+    try:
+        ticker = yf.Ticker(symbol)
+        df = ticker.history(period='6mo', auto_adjust=True)
+        if df.empty or len(df) < 20:
+            return None
+        df['SMA_20'] = df['Close'].rolling(20).mean()
+        df['SMA_50'] = df['Close'].rolling(50).mean()
+        last_n = min(len(df), 90)
+        df = df.tail(last_n)
+        sl_price = atr_details.get('suggested_stop', current_price * 0.95)
+        hp_price = atr_details.get('half_profit_price', current_price * 1.02)
+        fp_price = atr_details.get('full_profit_price', current_price * 1.04)
+        fig = make_subplots(
+            rows=2, cols=1, shared_xaxes=True,
+            vertical_spacing=0.03, row_heights=[0.7, 0.3],
+            subplot_titles=(f"{symbol} — Daily Chart", "Volume")
+        )
+        fig.add_trace(
+            go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'],
+                           close=df['Close'], name='Price',
+                           increasing_line_color='#26a69a', decreasing_line_color='#ef5350'), row=1, col=1)
+        fig.add_trace(
+            go.Scatter(x=df.index, y=df['SMA_20'], name='20 SMA', line=dict(color='#42a5f5', width=1)), row=1, col=1)
+        fig.add_trace(
+            go.Scatter(x=df.index, y=df['SMA_50'], name='50 SMA', line=dict(color='#ab47bc', width=1)), row=1, col=1)
+        x_range = [df.index[-1], df.index[-1] + pd.Timedelta(days=15)]
+        fig.add_trace(
+            go.Scatter(x=x_range, y=[sl_price, sl_price], name='Stop Loss', mode='lines',
+                       line=dict(color='red', dash='dash', width=2)), row=1, col=1)
+        fig.add_trace(
+            go.Scatter(x=x_range, y=[hp_price, hp_price], name='Half Profit', mode='lines',
+                       line=dict(color='orange', dash='dash', width=2)), row=1, col=1)
+        fig.add_trace(
+            go.Scatter(x=x_range, y=[fp_price, fp_price], name='Full Profit', mode='lines',
+                       line=dict(color='green', dash='dash', width=2)), row=1, col=1)
+        colors = ['green' if c >= o else 'red' for c, o in zip(df['Close'], df['Open'])]
+        fig.add_trace(go.Bar(x=df.index, y=df['Volume'], name='Volume', marker_color=colors,
+                              opacity=0.5, showlegend=False), row=2, col=1)
+        fig.update_xaxes(rangeslider_visible=False, row=1, col=1)
+        y_min = min(df['Low'].min(), sl_price) * 0.98
+        y_max = max(df['High'].max(), fp_price) * 1.03
+        fig.update_yaxes(title_text="Price ($)", row=1, col=1, range=[y_min, y_max])
+        fig.update_yaxes(title_text="Volume", row=2, col=1)
+        fig.update_layout(
+            height=500, template='plotly_dark', hovermode='x unified',
+            margin=dict(l=0, r=0, t=20, b=0), legend=dict(orientation='h', y=1.02)
+        )
+        return fig
+    except Exception:
+        return None
+
 def _render_swing_card(result, rank):
     """Render a detailed swing trading signal card"""
     symbol = result['symbol']
@@ -435,59 +490,4 @@ if analyze_btn and symbols:
         for rank, result in enumerate(results, 1):
             _render_swing_card(result, rank)
 
-
-def _build_trade_chart(symbol, current_price, atr_details):
-    """Build an interactive Plotly chart with trade levels"""
-    if not atr_details:
-        return None
-    try:
-        ticker = yf.Ticker(symbol)
-        df = ticker.history(period='6mo', auto_adjust=True)
-        if df.empty or len(df) < 20:
-            return None
-        df['SMA_20'] = df['Close'].rolling(20).mean()
-        df['SMA_50'] = df['Close'].rolling(50).mean()
-        last_n = min(len(df), 90)
-        df = df.tail(last_n)
-        sl_price = atr_details.get('suggested_stop', current_price * 0.95)
-        hp_price = atr_details.get('half_profit_price', current_price * 1.02)
-        fp_price = atr_details.get('full_profit_price', current_price * 1.04)
-        fig = make_subplots(
-            rows=2, cols=1, shared_xaxes=True,
-            vertical_spacing=0.03, row_heights=[0.7, 0.3],
-            subplot_titles=(f"{symbol} — Daily Chart", "Volume")
-        )
-        fig.add_trace(
-            go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'],
-                           close=df['Close'], name='Price',
-                           increasing_line_color='#26a69a', decreasing_line_color='#ef5350'), row=1, col=1)
-        fig.add_trace(
-            go.Scatter(x=df.index, y=df['SMA_20'], name='20 SMA', line=dict(color='#42a5f5', width=1)), row=1, col=1)
-        fig.add_trace(
-            go.Scatter(x=df.index, y=df['SMA_50'], name='50 SMA', line=dict(color='#ab47bc', width=1)), row=1, col=1)
-        x_range = [df.index[-1], df.index[-1] + pd.Timedelta(days=15)]
-        fig.add_trace(
-            go.Scatter(x=x_range, y=[sl_price, sl_price], name='Stop Loss', mode='lines',
-                       line=dict(color='red', dash='dash', width=2)), row=1, col=1)
-        fig.add_trace(
-            go.Scatter(x=x_range, y=[hp_price, hp_price], name='Half Profit', mode='lines',
-                       line=dict(color='orange', dash='dash', width=2)), row=1, col=1)
-        fig.add_trace(
-            go.Scatter(x=x_range, y=[fp_price, fp_price], name='Full Profit', mode='lines',
-                       line=dict(color='green', dash='dash', width=2)), row=1, col=1)
-        colors = ['green' if c >= o else 'red' for c, o in zip(df['Close'], df['Open'])]
-        fig.add_trace(go.Bar(x=df.index, y=df['Volume'], name='Volume', marker_color=colors,
-                              opacity=0.5, showlegend=False), row=2, col=1)
-        fig.update_xaxes(rangeslider_visible=False, row=1, col=1)
-        y_min = min(df['Low'].min(), sl_price) * 0.98
-        y_max = max(df['High'].max(), fp_price) * 1.03
-        fig.update_yaxes(title_text="Price ($)", row=1, col=1, range=[y_min, y_max])
-        fig.update_yaxes(title_text="Volume", row=2, col=1)
-        fig.update_layout(
-            height=500, template='plotly_dark', hovermode='x unified',
-            margin=dict(l=0, r=0, t=20, b=0), legend=dict(orientation='h', y=1.02)
-        )
-        return fig
-    except Exception:
-        return None
 
