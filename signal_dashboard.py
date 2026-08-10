@@ -57,11 +57,12 @@ def render_signal_dashboard():
     
     col1, col2 = st.columns([3, 1])
     with col2:
-        max_stocks = st.slider("Max Stocks to Scan", 5, 50, 20, 5, key="max_stocks_slider")
+        max_stocks = st.slider("Max Stocks to Scan", 5, 50, 20, 1, key="max_stocks_slider")
+        analyze_btn = st.button("🔍 Analyze", type="primary", use_container_width=True, key="analyze_btn")
     with col1:
-        symbols_input = st.text_input("Enter Stock Symbols (comma separated)", ",".join(DEFAULT_SYMBOLS[:max_stocks]), help="US Stock symbols", key="symbols_input")
-    with col2:
-        analyze_btn = st.button("🔍 Analyze", type="primary", key="analyze_btn")
+        symbols_input = st.text_input("Enter Stock Symbols (comma separated)",
+                                       ",".join(DEFAULT_SYMBOLS[:max_stocks]),
+                                       help="US Stock symbols", key="symbols_input")
     
     symbols = [s.strip().upper() for s in symbols_input.split(",") if s.strip()]
     
