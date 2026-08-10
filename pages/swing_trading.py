@@ -402,62 +402,50 @@ if analyze_btn and symbols:
     for symbol, error in errors:
         st.error(f"❌ {symbol}: {error}")
     
-    # Sort by score descending
     results.sort(key=lambda x: x['total_score'], reverse=True)
-    
-    # Summary
-    a_plus = [r for r in results if r['total_score'] >= 162]
-    a_grade = [r for r in results if 144 <= r['total_score'] < 162]
-    b_grade = [r for r in results if 126 <= r['total_score'] < 144]
-    c_grade = [r for r in results if 108 <= r['total_score'] < 126]
-    
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("🏆 A+ Setups (162+)", len(a_plus))
-    col2.metric("✅ A Grade (144-161)", len(a_grade))
-    col3.metric("📊 B Grade (126-143)", len(b_grade))
-    col4.metric("👀 C Grade (108-125)", len(c_grade))
-    
-    st.markdown("---")
-    
-    if not results:
-        st.warning(f"No stocks scored above {min_score}. Try lowering the threshold or scanning different stocks.")
-    else:
-        st.subheader(f"📋 Swing Trading Signals (Score ≥ {min_score})")
-        
-        # Build summary table
-        table_data = []
-        for r in results:
-            scores = r.get('scores', {})
-            table_data.append({
-                'Symbol': r['symbol'],
-                'Score': r['total_score'],
-                'Grade': r['grade'],
-                'Signal': r['signal'],
-                'Price': f"${r['current_price']:.2f}",
-                '🛑 Stop Loss': f"${r['details'].get('atr_risk', {}).get('suggested_stop', r['current_price']):.2f}",
-                '🎯 Half Profit': f"${r['details'].get('atr_risk', {}).get('half_profit_price', 0):.2f}",
-                '🚀 Full Profit': f"${r['details'].get('atr_risk', {}).get('full_profit_price', 0):.2f}",
-                'Trend': scores.get('trend', 0),
-                'S/R': scores.get('support_resistance', 0),
-                'Fib': scores.get('fibonacci', 0),
-                'Candle': scores.get('candlestick', 0),
-                'Momentum': scores.get('momentum', 0),
-                'Volume': scores.get('volume', 0),
-                'Sentiment': scores.get('sentiment', 0),
-                'Fundamentals': scores.get('fundamentals', 0),
-                'Regime': scores.get('regime', 0),
-                'ML': scores.get('ml', 0),
-                'Sector': scores.get('sector', 0),
-                'ATR': scores.get('atr_risk', 0),
-                'Earnings': scores.get('earnings', 0),
-                'Insider': scores.get('insider', 0),
-                'Breakout': scores.get('breakout', 0),
-                'TradeMgmt': scores.get('trade_mgmt', 0),
-                'Liquidity': scores.get('liquidity', 0),
-            })
-        
+    st.session_state.last_results = results
+    st.session_state.last_min_score = min_score
+else:
+    results = st.session_state.get('last_results', [])
+    min_score = st.session_state.get('last_min_score', 162)
+
+if results:
+    st.subheader(f"📋 Swing Trading Signals (Score ≥ {min_score})")
+
+    # Build summary table
+    table_data = []
+    for r in results:
+        scores = r.get('scores', {})
+        table_data.append({
+            'Symbol': r['symbol'],
+            'Score': r['total_score'],
+            'Grade': r['grade'],
+            'Signal': r['signal'],
+            'Price': f"${r['current_price']:.2f}",
+            '🛑 Stop Loss': f"${r['details'].get('atr_risk', {}).get('suggested_stop', r['current_price']):.2f}",
+            '🎯 Half Profit': f"${r['details'].get('atr_risk', {}).get('half_profit_price', 0):.2f}",
+            '🚀 Full Profit': f"${r['details'].get('atr_risk', {}).get('full_profit_price', 0):.2f}",
+            'Trend': scores.get('trend', 0),
+            'S/R': scores.get('support_resistance', 0),
+            'Fib': scores.get('fibonacci', 0),
+            'Candle': scores.get('candlestick', 0),
+            'Momentum': scores.get('momentum', 0),
+            'Volume': scores.get('volume', 0),
+            'Sentiment': scores.get('sentiment', 0),
+            'Fundamentals': scores.get('fundamentals', 0),
+            'Regime': scores.get('regime', 0),
+            'ML': scores.get('ml', 0),
+            'Sector': scores.get('sector', 0),
+            'ATR': scores.get('atr_risk', 0),
+            'Earnings': scores.get('earnings', 0),
+            'Insider': scores.get('insider', 0),
+            'Breakout': scores.get('breakout', 0),
+            'TradeMgmt': scores.get('trade_mgmt', 0),
+            'Liquidity': scores.get('liquidity', 0),
+        })
+
         df = pd.DataFrame(table_data)
-        
+
         # Color-code the Grade column
         def color_grade(val):
             if val == 'A+':
@@ -469,10 +457,10 @@ if analyze_btn and symbols:
             elif val == 'C':
                 return 'background-color: #FF8C00; color: white'
             return ''
-        
+
         styled_df = df.style.map(color_grade, subset=['Grade'])
         st.dataframe(styled_df, use_container_width=True, hide_index=True)
-        
+
         # Download CSV
         csv = df.to_csv(index=False)
         st.download_button(
@@ -481,7 +469,7 @@ if analyze_btn and symbols:
             f"swing_signals_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
             "text/csv"
         )
-        
+
         # Email alert
         with st.expander("📧 Email Alerts", expanded=False):
             ecol1, ecol2 = st.columns(2)
@@ -490,7 +478,7 @@ if analyze_btn and symbols:
                 smtp_port = st.number_input("Port", value=587, key="smtp_port")
                 sender_email = st.text_input("Sender Email", value=st.session_state.get('sender_email', ''), key="sender_email")
             with ecol2:
-                sender_pw = st.text_input("App Password", type="password", 
+                sender_pw = st.text_input("App Password", type="password",
                                           value=st.session_state.get('sender_pw', ''), key="sender_pw",
                                           help="Gmail: generate App Password at myaccount.google.com/apppasswords")
                 recipient = st.text_input("Recipient Email", value=st.session_state.get('recipient', ''), key="recipient")
@@ -506,17 +494,15 @@ if analyze_btn and symbols:
                         ok = alert.send_alerts(results, "[Stock Trader]")
                     if ok:
                         st.success(f"✅ Email sent to {recipient}!")
-                        st.session_state.sender_email = sender_email
-                        st.session_state.sender_pw = sender_pw
-                        st.session_state.recipient = recipient
+                        st.session_state.email_saved = True
                     else:
                         st.error("❌ Failed. Check SMTP settings and app password.")
-        
+
         st.markdown("---")
-        
+
         # Detailed cards for each signal
         st.subheader("🔍 Detailed Analysis")
-        
+
         for rank, result in enumerate(results, 1):
             _render_swing_card(result, rank)
 
