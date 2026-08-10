@@ -62,7 +62,7 @@ def render_signal_dashboard():
     with col1:
         symbols_input = st.text_input("Enter Stock Symbols (comma separated)",
                                        ",".join(DEFAULT_SYMBOLS[:max_stocks]),
-                                       help="US Stock symbols", key="symbols_input")
+                                       help="US Stock symbols", key=f"symbols_input_{max_stocks}")
     
     symbols = [s.strip().upper() for s in symbols_input.split(",") if s.strip()]
     
