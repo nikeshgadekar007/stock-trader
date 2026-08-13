@@ -53,7 +53,7 @@ STOCK_SECTOR = {
 
 
 class ConfluenceScorer:
-    """17-Layer Confluence Scoring System. Total = 180 points."""
+    """19-Layer Confluence Scoring System. Total = 200 points for short, 180 for long."""
 
     def __init__(self):
         self.scores = {}
@@ -62,8 +62,8 @@ class ConfluenceScorer:
         self.signal = 'HOLD'
         self.grade = 'F'
 
-    def score_all(self, symbol: str) -> Dict:
-        """Run all 12 layers and return final score"""
+    def score_all(self, symbol: str, direction: str = 'long') -> Dict:
+        """Run all layers. direction='long'|'short'|'both'"""
         self.scores = {}
         self.details = {}
 
@@ -78,102 +78,107 @@ class ConfluenceScorer:
 
             current_price = df_daily['Close'].iloc[-1]
 
-            # Layer 1: Trend Alignment (30 points - ENHANCED)
-            self.scores['trend'] = self._score_trend(df_daily, df_weekly, df_monthly)
-
-            # Layer 2: Support/Resistance (15 points)
+            # Layers 1-17 (existing)
+            self.scores['trend'] = self._score_trend(df_daily, df_weekly, df_monthly, direction)
             self.scores['support_resistance'] = self._score_support_resistance(df_daily, current_price)
-
-            # Layer 3: Fibonacci (10 points)
             self.scores['fibonacci'] = self._score_fibonacci(df_daily, current_price)
-
-            # Layer 4: Candlestick Patterns (10 points)
-            self.scores['candlestick'] = self._score_candlestick(df_daily)
-
-            # Layer 5: Momentum Indicators (10 points)
-            self.scores['momentum'] = self._score_momentum(df_daily)
-
-            # Layer 6: Volume Confirmation (10 points)
+            self.scores['candlestick'] = self._score_candlestick(df_daily, direction)
+            self.scores['momentum'] = self._score_momentum(df_daily, direction)
             self.scores['volume'] = self._score_volume(df_daily)
-
-            # Layer 7: News Sentiment (10 points)
             self.scores['sentiment'] = self._score_sentiment(symbol)
-
-            # Layer 8: Fundamentals (10 points)
             self.scores['fundamentals'] = self._score_fundamentals(ticker)
-
-            # Layer 9: Market Regime (5 points)
             self.scores['regime'] = self._score_regime()
-
-            # Layer 10: ML Prediction (10 points)
             self.scores['ml'] = self._score_ml(df_daily)
-
-            # Layer 11: Sector Strength (10 points - NEW)
             self.scores['sector'] = self._score_sector(symbol, df_daily)
-
-            # Layer 12: ATR Risk Management (10 points - NEW)
-            self.scores['atr_risk'] = self._score_atr_risk(df_daily, current_price)
-
-            # Layer 13: Earnings Risk (10 points - NEW)
+            self.scores['atr_risk'] = self._score_atr_risk(df_daily, current_price, direction)
             self.scores['earnings'] = self._score_earnings(ticker)
-
-            # Layer 14: Insider Activity (10 points - NEW)
             self.scores['insider'] = self._score_insider(ticker)
-
-            # Layer 15: 52-Week Breakout (10 points - NEW)
-            self.scores['breakout'] = self._score_breakout(df_daily, current_price)
-
-            # Layer 16: Trade Management (10 points - NEW)
-            self.scores['trade_mgmt'] = self._score_trade_mgmt(df_daily, current_price)
-
-            # Layer 17: Liquidity (10 points - NEW)
+            self.scores['breakout'] = self._score_breakout(df_daily, current_price, direction)
+            self.scores['trade_mgmt'] = self._score_trade_mgmt(df_daily, current_price, direction)
             self.scores['liquidity'] = self._score_liquidity(df_daily)
 
-            self.total_score = sum(self.scores.values())
-
-            # Grading (adjusted for 180 max)
-            if self.total_score >= 162:
-                self.signal = 'STRONG_BUY'
-                self.grade = 'A+'
-            elif self.total_score >= 144:
-                self.signal = 'BUY'
-                self.grade = 'A'
-            elif self.total_score >= 126:
-                self.signal = 'MODERATE_BUY'
-                self.grade = 'B'
-            elif self.total_score >= 108:
-                self.signal = 'WEAK_BUY'
-                self.grade = 'C'
-            elif self.total_score <= 18:
-                self.signal = 'STRONG_SELL'
-                self.grade = 'A+'
-            elif self.total_score <= 36:
-                self.signal = 'SELL'
-                self.grade = 'A'
-            elif self.total_score <= 54:
-                self.signal = 'MODERATE_SELL'
-                self.grade = 'B'
+            # SHORT-SPECIFIC LAYERS
+            if direction in ('short', 'both'):
+                self.scores['short_interest'] = self._score_short_interest(ticker)
+                self.scores['bearish_divergence'] = self._score_bearish_divergence(df_daily)
             else:
-                self.signal = 'HOLD'
-                self.grade = 'D'
+                self.scores['short_interest'] = 0
+                self.scores['bearish_divergence'] = 0
+
+            self.total_score = sum(self.scores.values())
+            self.max_score = 200 if direction in ('short', 'both') else 180
+            self.direction = direction
+
+            # Grading
+            if direction == 'short':
+                if self.total_score >= 180:
+                    self.signal = 'STRONG_SHORT'
+                    self.grade = 'A+'
+                elif self.total_score >= 160:
+                    self.signal = 'SHORT'
+                    self.grade = 'A'
+                elif self.total_score >= 140:
+                    self.signal = 'MODERATE_SHORT'
+                    self.grade = 'B'
+                elif self.total_score >= 120:
+                    self.signal = 'WEAK_SHORT'
+                    self.grade = 'C'
+                elif self.total_score <= 20:
+                    self.signal = 'STRONG_BUY'
+                    self.grade = 'A+'
+                elif self.total_score <= 40:
+                    self.signal = 'BUY'
+                    self.grade = 'A'
+                elif self.total_score <= 60:
+                    self.signal = 'MODERATE_BUY'
+                    self.grade = 'B'
+                else:
+                    self.signal = 'HOLD'
+                    self.grade = 'D'
+            else:
+                if self.total_score >= 162:
+                    self.signal = 'STRONG_BUY'
+                    self.grade = 'A+'
+                elif self.total_score >= 144:
+                    self.signal = 'BUY'
+                    self.grade = 'A'
+                elif self.total_score >= 126:
+                    self.signal = 'MODERATE_BUY'
+                    self.grade = 'B'
+                elif self.total_score >= 108:
+                    self.signal = 'WEAK_BUY'
+                    self.grade = 'C'
+                elif self.total_score <= 18:
+                    self.signal = 'STRONG_SELL'
+                    self.grade = 'A+'
+                elif self.total_score <= 36:
+                    self.signal = 'SELL'
+                    self.grade = 'A'
+                elif self.total_score <= 54:
+                    self.signal = 'MODERATE_SELL'
+                    self.grade = 'B'
+                else:
+                    self.signal = 'HOLD'
+                    self.grade = 'D'
 
             return {
                 'symbol': symbol,
+                'direction': direction,
                 'current_price': round(current_price, 2),
                 'total_score': self.total_score,
-                'max_score': 180,
+                'max_score': self.max_score,
                 'signal': self.signal,
                 'grade': self.grade,
                 'scores': self.scores,
                 'details': self.details,
-                'is_a_plus': self.total_score >= 162,
+                'is_a_plus': self.total_score >= (162 if direction == 'long' else 180),
                 'timestamp': datetime.now().isoformat()
             }
         except Exception as e:
             return {'error': str(e), 'total_score': 0, 'signal': 'HOLD'}
 
     # ========== LAYER 1: Trend Alignment (30 points - ENHANCED) ==========
-    def _score_trend(self, df_daily, df_weekly, df_monthly) -> int:
+    def _score_trend(self, df_daily, df_weekly, df_monthly, direction='long') -> int:
         """Enhanced multi-timeframe trend scoring with pullback detection"""
         score = 0
         details = {}
@@ -354,7 +359,7 @@ class ConfluenceScorer:
         return min(score, 10)
 
     # ========== LAYER 4: Candlestick Patterns (10 points) ==========
-    def _score_candlestick(self, df) -> int:
+    def _score_candlestick(self, df, direction='long') -> int:
         score = 0
         details = {}
         if len(df) < 3:
@@ -402,7 +407,7 @@ class ConfluenceScorer:
         return min(score, 10)
 
     # ========== LAYER 5: Momentum Indicators (10 points) ==========
-    def _score_momentum(self, df) -> int:
+    def _score_momentum(self, df, direction='long') -> int:
         score = 0
         details = {}
         delta = df['Close'].diff()
@@ -758,7 +763,7 @@ class ConfluenceScorer:
         return min(score, 10)
 
     # ========== LAYER 12: ATR Risk Management (10 points) ==========
-    def _score_atr_risk(self, df, current_price) -> int:
+    def _score_atr_risk(self, df, current_price, direction='long') -> int:
         score = 5
         details = {}
         try:
@@ -912,7 +917,7 @@ class ConfluenceScorer:
         return min(score, 10)
 
     # ========== LAYER 15: 52-Week Breakout (10 points) ==========
-    def _score_breakout(self, df, current_price) -> int:
+    def _score_breakout(self, df, current_price, direction='long') -> int:
         score = 5
         details = {}
         try:
@@ -956,7 +961,7 @@ class ConfluenceScorer:
         return min(score, 10)
 
 # ========== LAYER 16: Trade Management (10 points) ==========
-    def _score_trade_mgmt(self, df, current_price) -> int:
+    def _score_trade_mgmt(self, df, current_price, direction='long') -> int:
         score = 5
         details = {}
         try:
@@ -988,7 +993,7 @@ class ConfluenceScorer:
                 details['quality'] = 'GOOD'
             elif rr_ratio >= 1.5:
                 score = 6
-                details['quality'] = 'ACCEPTABLE'
+                details['quality'] = 'GOOD'
             else:
                 score = 3
                 details['quality'] = 'POOR_RISK_REWARD'
@@ -1004,6 +1009,107 @@ class ConfluenceScorer:
 
     # ========== LAYER 17: Liquidity Filter (10 points) ==========
     def _score_liquidity(self, df) -> int:
+        score = 0
+        details = {}
+        try:
+            avg_vol = df['Volume'].rolling(20).mean().iloc[-1]
+            avg_price = df['Close'].rolling(20).mean().iloc[-1]
+            adv = avg_vol * avg_price
+            details['avg_daily_volume_shares'] = int(avg_vol)
+            details['avg_dollar_volume'] = round(adv / 1e6, 1)
+            if adv > 500_000_000:
+                score = 10
+                details['level'] = 'INSTITUTIONAL_GRADE'
+            elif adv > 100_000_000:
+                score = 8
+                details['level'] = 'HIGHLY_LIQUID'
+            elif adv > 50_000_000:
+                score = 6
+                details['level'] = 'LIQUID'
+            elif adv > 10_000_000:
+                score = 3
+                details['level'] = 'MODERATELY_LIQUID'
+            else:
+                score = 0
+                details['level'] = 'LOW_LIQUIDITY_AVOID'
+            spread_estimate = avg_price * 0.001
+            details['est_spread'] = round(spread_estimate, 2)
+            details['est_spread_pct'] = 0.10
+        except Exception:
+            details['level'] = 'CALC_ERROR'
+        self.details['liquidity'] = details
+        return min(score, 10)
+
+    # ========== LAYER 18: Short Interest (10 points, short mode only) ==========
+    def _score_short_interest(self, ticker) -> int:
+        score = 5
+        details = {}
+        try:
+            info = ticker.info
+            si = info.get('shortPercentOfFloat') or info.get('shortRatio') or info.get('sharesShort') or 0
+            if si and isinstance(si, (int, float)):
+                si_pct = float(si) * 100 if float(si) < 1 else float(si)
+                details['short_pct'] = round(si_pct, 1)
+                if 5 <= si_pct <= 15:
+                    score = 8
+                    details['level'] = 'GOOD_FUEL'
+                elif si_pct < 5:
+                    score = 5
+                    details['level'] = 'LOW_INTEREST'
+                elif si_pct <= 25:
+                    score = 4
+                    details['level'] = 'ELEVATED'
+                else:
+                    score = 2
+                    details['level'] = 'SQUEEZE_RISK_HIGH'
+            else:
+                details['short_pct'] = 0
+                details['level'] = 'DATA_UNAVAILABLE'
+        except Exception:
+            details['level'] = 'UNAVAILABLE'
+        self.details['short_interest'] = details
+        return min(score, 10)
+
+    # ========== LAYER 19: Bearish Divergence (10 points, short mode only) ==========
+    def _score_bearish_divergence(self, df) -> int:
+        score = 5
+        details = {}
+        try:
+            if len(df) < 50:
+                self.details['bearish_divergence'] = {'divergence': 'INSUFFICIENT_DATA'}
+                return 5
+            close = df['Close'].values
+            delta = df['Close'].diff()
+            gain = np.where(delta > 0, delta, 0)
+            loss = np.where(delta < 0, -delta, 0)
+            avg_gain = pd.Series(gain).rolling(14).mean().values
+            avg_loss = pd.Series(loss).rolling(14).mean().values
+            rs = np.divide(avg_gain, avg_loss, out=np.zeros_like(avg_gain), where=avg_loss != 0)
+            rsi = 100 - (100 / (1 + rs))
+            recent_close = close[-20:]
+            recent_rsi = rsi[-20:]
+            price_higher = recent_close[-1] > recent_close[0]
+            rsi_lower = recent_rsi[-1] < recent_rsi[0]
+            details['price_change_pct'] = round((recent_close[-1] / recent_close[0] - 1) * 100, 1)
+            details['rsi_change'] = round(recent_rsi[-1] - recent_rsi[0], 1)
+            if price_higher and rsi_lower:
+                if recent_rsi[-1] < 50:
+                    score = 10
+                    details['divergence'] = 'STRONG_BEARISH'
+                else:
+                    score = 8
+                    details['divergence'] = 'BEARISH'
+            elif not price_higher and rsi_lower:
+                score = 7
+                details['divergence'] = 'WEAK_BEARISH'
+            else:
+                score = 4
+                details['divergence'] = 'NONE'
+        except Exception:
+            details['divergence'] = 'CALC_ERROR'
+        self.details['bearish_divergence'] = details
+        return min(score, 10)
+
         score = 0
         details = {}
         try:

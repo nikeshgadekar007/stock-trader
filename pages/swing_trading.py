@@ -24,48 +24,36 @@ if "auto_refresh" not in st.session_state:
 # Sidebar
 with st.sidebar:
     st.header("⚙️ Settings")
-    min_score = st.slider("Minimum Score Threshold", 80, 180, 162, 2, 
-                          help="Only show signals above this score. 162+ = A+ setups (90%)")
+    trade_direction = st.radio("📈 Trade Direction", ["Long", "Short"], index=0,
+                                help="Long=buy low sell high. Short=sell high buy low.")
+    direction = "long" if trade_direction == "Long" else "short"
+    max_score_label = 200 if direction == "short" else 180
+    min_score = st.slider("Minimum Score Threshold", 60, max_score_label,
+                          int(max_score_label * 0.9), 2,
+                          help=f"A+ = {int(max_score_label*0.9)}+ (90% of max)")
     max_stocks = st.slider("Max Stocks to Scan", 5, 50, 20, 5)
-    auto_refresh = st.checkbox("🔄 Auto-Refresh (Live)", value=st.session_state.auto_refresh, 
-                                help="Auto-refresh chart data every 2 minutes")
+    auto_refresh = st.checkbox("🔄 Auto-Refresh", value=st.session_state.auto_refresh,
+                                help="Auto-refresh every 2 minutes")
     if auto_refresh:
         st.session_state.auto_refresh = True
-        refresh_interval = st.select_slider("Refresh Interval", options=[30, 60, 120, 300], value=120,
-                                            help="Seconds between refreshes")
+        refresh_interval = st.select_slider("Interval", options=[30, 60, 120, 300], value=120)
         st.session_state.refresh_interval = refresh_interval
     else:
         st.session_state.auto_refresh = False
     
     st.markdown("---")
-    st.markdown("### 📊 Score Guide (/180)")
-    st.markdown("| Score | Grade | Signal |")
-    st.markdown("|-------|-------|--------|")
-    st.markdown("| 162-180 | A+ | STRONG BUY |")
-    st.markdown("| 144-161 | A | BUY |")
-    st.markdown("| 126-143 | B | MODERATE BUY |")
-    st.markdown("| 108-125 | C | WEAK BUY |")
-    st.markdown("| 72-107 | D | HOLD |")
+    st.markdown(f"### 📊 Score Guide (/{max_score_label})")
+    if direction == "long":
+        st.markdown("| 162-180 | A+ | STRONG BUY |\n| 144-161 | A | BUY |\n| 126-143 | B | MODERATE BUY |\n| 108-125 | C | WEAK BUY |\n| 72-107 | D | HOLD |")
+    else:
+        st.markdown("| 180-200 | A+ | STRONG SHORT |\n| 160-179 | A | SHORT |\n| 140-159 | B | MODERATE SHORT |\n| 120-139 | C | WEAK SHORT |\n| 80-119 | D | HOLD |")
     
     st.markdown("---")
-    st.markdown("### 🎯 17 Layers")
-    st.markdown("1. Multi-Timeframe Trend (30 pts)")
-    st.markdown("2. Support/Resistance (15 pts)")
-    st.markdown("3. Fibonacci Levels (10 pts)")
-    st.markdown("4. Candlestick Patterns (10 pts)")
-    st.markdown("5. Momentum Indicators (10 pts)")
-    st.markdown("6. Volume Confirmation (10 pts)")
-    st.markdown("7. News Sentiment (10 pts)")
-    st.markdown("8. Fundamentals (10 pts)")
-    st.markdown("9. Market Regime (5 pts)")
-    st.markdown("10. ML Prediction (10 pts)")
-    st.markdown("11. Sector Strength (10 pts)")
-    st.markdown("12. ATR Risk Mgmt (10 pts)")
-    st.markdown("13. Earnings Risk (10 pts)")
-    st.markdown("14. Insider Activity (10 pts)")
-    st.markdown("15. 52-Wk Breakout (10 pts)")
-    st.markdown("16. Trade Management (10 pts)")
-    st.markdown("17. Liquidity Filter (10 pts)")
+    st.markdown("### 🎯 19 Layers")
+    st.markdown("1. Trend (30) 2. S/R (15) 3. Fib (10) 4. Candle (10) 5. Momentum (10) 6. Volume (10)")
+    st.markdown("7. Sentiment (10) 8. Fundamentals (10) 9. Regime (5) 10. ML (10) 11. Sector (10)")
+    st.markdown("12. ATR Risk (10) 13. Earnings (10) 14. Insider (10) 15. Breakout (10)")
+    st.markdown("16. Trade Mgmt (10) 17. Liquidity (10) 18. Short Int (10) 19. Bearish Div (10)")
 
 # Default watchlist
 DEFAULT_SYMBOLS = [
@@ -387,7 +375,7 @@ if analyze_btn and symbols:
         status_text.text(f"🔍 Analyzing {symbol} ({i+1}/{len(symbols)})...")
         
         scorer = ConfluenceScorer()
-        result = scorer.score_all(symbol)
+        result = scorer.score_all(symbol, direction=direction)
         
         if 'error' in result:
             errors.append((symbol, result['error']))
