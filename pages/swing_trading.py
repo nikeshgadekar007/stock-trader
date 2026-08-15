@@ -27,7 +27,7 @@ with st.sidebar:
     trade_direction = st.radio("📈 Trade Direction", ["Long", "Short"], index=0,
                                 help="Long=buy low sell high. Short=sell high buy low.")
     direction = "long" if trade_direction == "Long" else "short"
-    max_score_label = 200 if direction == "short" else 180
+    max_score_label = 210 if direction == "short" else 190
     min_score = st.slider("Minimum Score Threshold", 60, max_score_label,
                           int(max_score_label * 0.9), 2,
                           help=f"A+ = {int(max_score_label*0.9)}+ (90% of max)")
@@ -202,8 +202,14 @@ def _render_swing_card(result, rank):
         except Exception as e:
             st.caption(f"⚠️ Chart unavailable: {str(e)[:60]}")
 
+    # OPG indicator
+    opg_details = details.get('opg', {})
+    if opg_details and opg_details.get('gap'):
+        gap_color = 'green' if opg_details.get('gap_type') == 'GAP_UP' else 'red'
+        st.markdown(f"📊 **Gap:** :{gap_color}[{opg_details.get('gap_pct', 0):+}%] — {opg_details.get('signal', 'N/A')} | Score: {opg_details.get('score', 0)}/10")
+
     # Layer breakdown
-    with st.expander("📊 17-Layer Score Breakdown"):
+    with st.expander("📊 20-Layer Score Breakdown"):
         layers = [
             ("Multi-Timeframe Trend", "trend", 30),
             ("Support/Resistance", "support_resistance", 15),
@@ -217,6 +223,14 @@ def _render_swing_card(result, rank):
             ("ML Prediction", "ml", 10),
             ("Sector Strength", "sector", 10),
             ("ATR Risk Mgmt", "atr_risk", 10),
+            ("Earnings Risk", "earnings", 10),
+            ("Insider Activity", "insider", 10),
+            ("52-Wk Breakout", "breakout", 10),
+            ("Trade Management", "trade_mgmt", 10),
+            ("Liquidity", "liquidity", 10),
+            ("Short Interest", "short_interest", 10),
+            ("Bearish Div", "bearish_divergence", 10),
+            ("OPG (Gaps)", "opg", 10),
         ]
         
         for name, key, max_pts in layers:

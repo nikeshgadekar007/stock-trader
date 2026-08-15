@@ -105,8 +105,11 @@ class ConfluenceScorer:
                 self.scores['short_interest'] = 0
                 self.scores['bearish_divergence'] = 0
 
+            # Layer 20: Opening Price Gap (10 points)
+            self.scores['opg'] = self._score_opg(symbol)
+
             self.total_score = sum(self.scores.values())
-            self.max_score = 200 if direction in ('short', 'both') else 180
+            self.max_score = 210 if direction in ('short', 'both') else 190
             self.direction = direction
 
             # Grading
@@ -1041,6 +1044,27 @@ class ConfluenceScorer:
         return min(score, 10)
 
     # ========== LAYER 18: Short Interest (10 points, short mode only) ==========
+# ========== LAYER 20: Opening Price Gap (10 points) ==========
+    def _score_opg(self, symbol) -> int:
+        score = 5
+        details = {}
+        try:
+            from .opg_engine import OPGDetector
+            detector = OPGDetector()
+            result = detector.detect_today(symbol)
+            details['gap'] = result.get('gap', False)
+            details['gap_pct'] = result.get('gap_pct', 0)
+            details['gap_type'] = result.get('gap_type', 'NO_GAP')
+            details['signal'] = result.get('signal', 'NO_SIGNAL')
+            details['vol_ratio'] = result.get('vol_ratio', 1.0)
+            details['score'] = result.get('score', 5)
+            score = result.get('score', 5)
+        except Exception:
+            details['gap'] = False
+            details['signal'] = 'UNAVAILABLE'
+        self.details['opg'] = details
+        return min(score, 10)
+
     def _score_short_interest(self, ticker) -> int:
         score = 5
         details = {}
