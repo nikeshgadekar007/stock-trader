@@ -19,6 +19,14 @@ DEFAULT_SYMBOLS = ["AAPL","MSFT","NVDA","AMZN","GOOGL","META","TSLA","BRK-B",
 detector = OPGDetector()
 db = OPGDatabase()
 
+# Wrap database calls
+def safe_get_history(limit=30):
+    try: return db.get_history(limit=limit)
+    except: return []
+def safe_get_stats():
+    try: return db.get_stats()
+    except: return {'total':0,'gap_ups':0,'gap_downs':0,'filled':0,'fill_rate':0}
+
 with st.sidebar:
     st.header("⚙️ OPG Settings")
     symbols_input = st.text_input("Stock Symbols (comma)", ",".join(DEFAULT_SYMBOLS[:20]),
@@ -29,7 +37,7 @@ with st.sidebar:
     btest_sym = st.text_input("Backtest Symbol", "SPY")
     btest_btn = st.button("📊 Run OPG Backtest")
     st.markdown("---")
-    stats = db.get_stats()
+    stats = safe_get_stats()
     if stats:
         st.metric("Total Gaps Recorded", stats.get('total', 0))
         st.metric("Gap Ups / Downs", f"{stats.get('gap_ups',0)} / {stats.get('gap_downs',0)}")
@@ -76,7 +84,7 @@ if btest_btn and btest_sym:
 
 st.markdown("---")
 st.subheader("📋 Historical Gap Database")
-history = db.get_history(limit=30)
+history = safe_get_history(limit=30)
 if history:
     hdf = pd.DataFrame(history)
     cols = ['symbol','date','gap_pct','gap_type','signal','score']
