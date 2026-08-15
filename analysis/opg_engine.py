@@ -122,8 +122,10 @@ class OPGDetector:
         try:
             t = yf.Ticker(symbol); df = t.history(period=period, auto_adjust=True)
             if df.empty or len(df) < 60: return {'error':'Insufficient data'}
-            df['pc'] = df['Close'].shift(1); df['gp'] = (df['Open']-df['pc'])/df['pc']*100
-            df['vm'] = df['Volume'].rolling(20).mean(); df['vr'] = df['Volume']/df['vm']
+            df['pc'] = df['Close'].shift(1)
+            df['gp'] = ((df['Open'] - df['pc']) / df['pc']) * 100
+            df['vm'] = df['Volume'].rolling(20).mean()
+            df['vr'] = (df['Volume'] / df['vm']).fillna(1)
             trades = []
             for i, r in df.iterrows():
                 if abs(r['gp']) < 1.0 or r['vr'] < 1.5: continue

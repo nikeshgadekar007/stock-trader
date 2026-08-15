@@ -116,6 +116,7 @@ def _build_trade_chart(symbol, current_price, atr_details):
             go.Scatter(x=df.index, y=df['SMA_20'], name='20 SMA', line=dict(color='#42a5f5', width=1)), row=1, col=1)
         fig.add_trace(
             go.Scatter(x=df.index, y=df['SMA_50'], name='50 SMA', line=dict(color='#ab47bc', width=1)), row=1, col=1)
+        # Range for horizontal lines
         x_range = [df.index[-1], df.index[-1] + pd.Timedelta(days=15)]
         fig.add_trace(
             go.Scatter(x=x_range, y=[sl_price, sl_price], name='Stop Loss', mode='lines',
