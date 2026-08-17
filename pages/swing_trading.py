@@ -14,7 +14,7 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Swing Trading Signals", page_icon="🎯", layout="wide")
 
 st.title("🎯 Swing Trading — A+ Setups Only")
-st.caption("17-Layer Confluence Scoring System | Only trades with score ≥ 162/180 are shown")
+st.caption("20-Layer Confluence Scoring System | 190pts Long / 210pts Short")
 
 # Auto-refresh
 if "auto_refresh" not in st.session_state:
