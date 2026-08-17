@@ -71,15 +71,13 @@ DEFAULT_SYMBOLS = [
 ]
 
 # Input
-col1, col2 = st.columns([3, 1])
-with col1:
-    symbols_input = st.text_input(
-        "Enter Stock Symbols (comma separated)",
-        ",".join(DEFAULT_SYMBOLS[:max_stocks]),
-        help="US Stock symbols for swing trading analysis"
-    )
-with col2:
-    analyze_btn = st.button("🔍 Scan for A+ Setups", type="primary", use_container_width=True)
+symbols_input = st.text_input(
+    "Enter Stock Symbols (comma separated)",
+    ",".join(DEFAULT_SYMBOLS[:max_stocks]),
+    help="US Stock symbols for swing trading analysis",
+    key="swing_symbols"
+)
+analyze_btn = st.button("🔍 Scan for A+ Setups", type="primary", use_container_width=True, key="swing_scan")
 
 symbols = [s.strip().upper() for s in symbols_input.split(",") if s.strip()]
 
