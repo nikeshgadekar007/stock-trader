@@ -105,11 +105,18 @@ class ConfluenceScorer:
                 self.scores['short_interest'] = 0
                 self.scores['bearish_divergence'] = 0
 
+            # Layer 21-25: INSTITUTIONAL EDGE STRATEGIES
+            self.scores['options_wall'] = self._score_options_wall(symbol, current_price)
+            self.scores['vix_term'] = self._score_vix_term()
+            self.scores['cross_asset'] = self._score_cross_asset()
+            self.scores['smart_money'] = self._score_smart_money(ticker, symbol)
+            self.scores['liquidity_sweep'] = self._score_liquidity_sweep(df_daily, current_price)
+
             # Layer 20: Opening Price Gap (10 points)
             self.scores['opg'] = self._score_opg(symbol)
 
             self.total_score = sum(self.scores.values())
-            self.max_score = 210 if direction in ('short', 'both') else 190
+            self.max_score = 260 if direction in ('short', 'both') else 190
             self.direction = direction
 
             # Grading
@@ -1210,3 +1217,38 @@ if __name__ == '__main__':
         print("    None found in this scan")
     print(f"{'='*70}")
 
+
+# ========== LAYER 21: Options Wall (10 points) ==========
+    def _score_options_wall(self, symbol, current_price) -> int:
+        from .swing_edge import SwingEdgeEngine
+        r = SwingEdgeEngine.options_wall(symbol, current_price)
+        self.details['options_wall'] = r
+        return r.get('score', 5)
+
+    # ========== LAYER 22: VIX Term Structure (10 points) ==========
+    def _score_vix_term(self) -> int:
+        from .swing_edge import SwingEdgeEngine
+        r = SwingEdgeEngine.vix_term()
+        self.details['vix_term'] = r
+        return r.get('score', 5)
+
+    # ========== LAYER 23: Cross-Asset Alignment (10 points) ==========
+    def _score_cross_asset(self) -> int:
+        from .swing_edge import SwingEdgeEngine
+        r = SwingEdgeEngine.xasset()
+        self.details['cross_asset'] = r
+        return r.get('score', 5)
+
+    # ========== LAYER 24: Smart Money Index (10 points) ==========
+    def _score_smart_money(self, ticker, symbol) -> int:
+        from .swing_edge import SwingEdgeEngine
+        r = SwingEdgeEngine.smi(symbol)
+        self.details['smart_money'] = r
+        return r.get('score', 5)
+
+    # ========== LAYER 25: Liquidity Sweep (10 points) ==========
+    def _score_liquidity_sweep(self, df, current_price) -> int:
+        from .swing_edge import SwingEdgeEngine
+        r = SwingEdgeEngine.sweep(df, current_price)
+        self.details['liquidity_sweep'] = r
+        return r.get('score', 5)

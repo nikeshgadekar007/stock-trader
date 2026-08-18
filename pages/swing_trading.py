@@ -27,7 +27,7 @@ with st.sidebar:
     trade_direction = st.radio("📈 Trade Direction", ["Long", "Short"], index=0,
                                 help="Long=buy low sell high. Short=sell high buy low.")
     direction = "long" if trade_direction == "Long" else "short"
-    max_score_label = 210 if direction == "short" else 190
+    max_score_label = 260 if direction == "short" else 240
     min_score = st.slider("Minimum Score Threshold", 60, max_score_label,
                           int(max_score_label * 0.9), 2,
                           help=f"A+ = {int(max_score_label*0.9)}+ (90% of max)")
@@ -237,6 +237,11 @@ def _render_swing_card(result, rank):
             ("Short Interest", "short_interest", 10),
             ("Bearish Div", "bearish_divergence", 10),
             ("OPG (Gaps)", "opg", 10),
+            ("Options Wall", "options_wall", 10),
+            ("VIX Term", "vix_term", 10),
+            ("Cross Asset", "cross_asset", 10),
+            ("Smart Money", "smart_money", 10),
+            ("Liquidity Sweep", "liquidity_sweep", 10),
         ]
         
         for name, key, max_pts in layers:
@@ -450,7 +455,13 @@ if results:
             'Breakout': scores.get('breakout', 0),
             'TradeMgmt': scores.get('trade_mgmt', 0),
             'Liquidity': scores.get('liquidity', 0),
-        })
+                'OPG': scores.get('opg', 0),
+                'OptWall': scores.get('options_wall', 0),
+                'VIXTerm': scores.get('vix_term', 0),
+                'XAsset': scores.get('cross_asset', 0),
+                'SMI': scores.get('smart_money', 0),
+                'LiqSweep': scores.get('liquidity_sweep', 0),
+            })
 
         df = pd.DataFrame(table_data)
 
