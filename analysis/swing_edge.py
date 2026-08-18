@@ -123,6 +123,7 @@ class SwingEdgeEngine:
             else:
                 sig = 'NEUTRAL'
                 sc = 5
+            return {'buy': int(u), 'sell': int(d), 'ratio': round(rt, 1), 'signal': sig, 'score': sc}
         except:
             return {"signal": "ERROR", "score": 5}
     @staticmethod
