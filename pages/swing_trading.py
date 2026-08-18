@@ -172,25 +172,32 @@ def _render_swing_card(result, rank):
     
     # Trade levels
     atr_details = details.get('atr_risk', {})
+    direction = result.get('direction', 'long')
     if atr_details:
         st.markdown("---")
-        st.markdown("#### 💰 Trade Levels (ATR-Based)")
+        short_mode = direction == 'short'
+        label_entry = "📉 SHORT Entry" if short_mode else "📈 LONG Entry"
+        label_sl = "🛑 STOP ABOVE" if short_mode else "🛑 STOP LOSS"
+        label_hp = "🎯 COVER HALF" if short_mode else "🎯 HALF PROFIT"
+        label_fp = "🚀 COVER FULL" if short_mode else "🚀 FULL PROFIT"
+        sl_delta_color = "normal" if short_mode else "inverse"
+        hp_fmt = "-{}" if short_mode else "+{}"
+        fp_fmt = "-{}" if short_mode else "+{}"
+        st.markdown(f"#### 💰 {label_entry} @ ${price:.2f}")
         tc1, tc2, tc3 = st.columns(3)
         with tc1:
-            sl_price = atr_details.get('suggested_stop', 0)
-            sl_pct = atr_details.get('stop_loss_pct', 0)
-            st.metric("🛑 STOP LOSS", f"${sl_price:.2f}", delta=f"-{sl_pct}%", delta_color="inverse")
+            st.metric(label_sl, f"${atr_details.get('suggested_stop', 0):.2f}",
+                      delta=hp_fmt.format(f"{atr_details.get('stop_loss_pct', 0)}%"),
+                      delta_color=sl_delta_color)
         with tc2:
-            hp_price = atr_details.get('half_profit_price', 0)
-            hp_pct = atr_details.get('half_profit_pct', 0)
-            st.metric("🎯 HALF PROFIT (50% Exit)", f"${hp_price:.2f}", delta=f"+{hp_pct}%")
+            st.metric(label_hp, f"${atr_details.get('half_profit_price', 0):.2f}",
+                      delta=hp_fmt.format(f"{atr_details.get('half_profit_pct', 0)}%"))
         with tc3:
-            fp_price = atr_details.get('full_profit_price', 0)
-            fp_pct = atr_details.get('full_profit_pct', 0)
-            st.metric("🚀 FULL PROFIT (100% Exit)", f"${fp_price:.2f}", delta=f"+{fp_pct}%")
+            st.metric(label_fp, f"${atr_details.get('full_profit_price', 0):.2f}",
+                      delta=fp_fmt.format(f"{atr_details.get('full_profit_pct', 0)}%"))
         pos_size = atr_details.get('position_size', 0)
         if pos_size > 0:
-            st.caption(f"💡 Suggested position: **{pos_size} shares** for a $10k account (1% risk per trade = $100 max loss)")
+            st.caption(f"💡 Suggested position: **{pos_size} shares** for a $10k account (1% risk per trade)")
 
     # Interactive Chart
     with st.expander("📈 Live Chart with Trade Levels", expanded=True):
