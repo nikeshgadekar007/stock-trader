@@ -1188,37 +1188,6 @@ class ConfluenceScorer:
         self.details['liquidity'] = details
         return min(score, 10)
 
-if __name__ == '__main__':
-    scorer = ConfluenceScorer()
-    symbols = ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META', 'TSLA']
-    print(f"{'='*70}")
-    print(f"  17-LAYER CONFLUENCE SCORER - A+ Swing Trade Scanner")
-    print(f"  Max Score: 180 | A+ Threshold: 162 (90%)")
-    print(f"{'='*70}")
-    for sym in symbols:
-        result = scorer.score_all(sym)
-        if 'error' in result:
-            print(f"  {sym}: ERROR - {result['error']}")
-            continue
-        print(f"\n  {result['symbol']:6s} | Price: ${result['current_price']:>8.2f} | "
-              f"Score: {result['total_score']:>3d}/180 | "
-              f"Signal: {result['signal']:15s} | Grade: {result['grade']}")
-        for layer, pts in result['scores'].items():
-            bar = '#' * (pts // 2) + '.' * (5 - pts // 2)
-            print(f"    {layer:20s}: [{bar}] {pts}pts")
-    print(f"\n{'='*70}")
-    print("  A+ Setups (Score >= 162):")
-    a_plus = [(s, scorer.score_all(s)) for s in symbols]
-    a_plus = [(s, r) for s, r in a_plus if r.get('is_a_plus')]
-    if a_plus:
-        for sym, r in a_plus:
-            print(f"    {sym}: {r['total_score']}/180 - {r['grade']} {r['signal']}")
-    else:
-        print("    None found in this scan")
-    print(f"{'='*70}")
-
-
-# ========== LAYER 21: Options Wall (10 points) ==========
     def _score_options_wall(self, symbol, current_price) -> int:
         from .swing_edge import SwingEdgeEngine
         r = SwingEdgeEngine.options_wall(symbol, current_price)
@@ -1252,3 +1221,34 @@ if __name__ == '__main__':
         r = SwingEdgeEngine.sweep(df, current_price)
         self.details['liquidity_sweep'] = r
         return r.get('score', 5)
+if __name__ == '__main__':
+    scorer = ConfluenceScorer()
+    symbols = ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META', 'TSLA']
+    print(f"{'='*70}")
+    print(f"  17-LAYER CONFLUENCE SCORER - A+ Swing Trade Scanner")
+    print(f"  Max Score: 180 | A+ Threshold: 162 (90%)")
+    print(f"{'='*70}")
+    for sym in symbols:
+        result = scorer.score_all(sym)
+        if 'error' in result:
+            print(f"  {sym}: ERROR - {result['error']}")
+            continue
+        print(f"\n  {result['symbol']:6s} | Price: ${result['current_price']:>8.2f} | "
+              f"Score: {result['total_score']:>3d}/180 | "
+              f"Signal: {result['signal']:15s} | Grade: {result['grade']}")
+        for layer, pts in result['scores'].items():
+            bar = '#' * (pts // 2) + '.' * (5 - pts // 2)
+            print(f"    {layer:20s}: [{bar}] {pts}pts")
+    print(f"\n{'='*70}")
+    print("  A+ Setups (Score >= 162):")
+    a_plus = [(s, scorer.score_all(s)) for s in symbols]
+    a_plus = [(s, r) for s, r in a_plus if r.get('is_a_plus')]
+    if a_plus:
+        for sym, r in a_plus:
+            print(f"    {sym}: {r['total_score']}/180 - {r['grade']} {r['signal']}")
+    else:
+        print("    None found in this scan")
+    print(f"{'='*70}")
+
+
+# ========== LAYER 21: Options Wall (10 points) ==========
