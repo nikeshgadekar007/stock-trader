@@ -289,6 +289,21 @@ def _render_signal_card(signal, rank, action_type, trading_capital=10000, max_ri
         pm_signal = signal.get('premarket_signal', 'PM_NEUTRAL')
         pm_emoji = "🟢" if pm_signal == 'PM_BULLISH' else "🔴" if pm_signal == 'PM_BEARISH' else "⚪"
         st.markdown(f"{pm_emoji} **Pre-Market Bias: {pm_signal}**")
+        # Tier 1 filter status badge
+        meta = pm_data.get('_meta', {})
+        if meta.get('filters_active'):
+            warnings = []
+            if meta.get('spread_too_wide'):
+                warnings.append(f"spread {meta.get('spread_pct', 0):.2f}%")
+            pm_vol = meta.get('total_premarket_volume') or 0
+            if pm_vol < 10000:
+                warnings.append(f"vol {pm_vol:,}")
+            et = meta.get('et_time', '?')
+            tmult = meta.get('time_multiplier', 1.0)
+            if warnings:
+                st.caption(f"⚠️ Accuracy filters active: ET={et}, x{tmult}, " + ", ".join(warnings))
+            else:
+                st.caption(f"✓ Filters OK: ET={et}, time_mult=x{tmult}, spread={meta.get('spread_pct', 0):.2f}%, vol={pm_vol:,}")
         with st.expander("🌅 Pre-Market Live Layers (4:00-9:30 AM ET)", expanded=(session == "PRE_MARKET")):
             pm_cols = st.columns(5)
             pm_labels = [

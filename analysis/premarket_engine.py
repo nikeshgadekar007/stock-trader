@@ -2,18 +2,67 @@
 Pre-Market Institutional Engine -- 5 Live Pre-Market Layers
 Gap, VWAP, Volume, Range Break, News Sentiment
 Designed for 4:00-9:30 AM ET pre-market trading
+
+Accuracy filters (Tier 1):
+  A. Liquidity discount (volume < 10K -> scale toward 5, < 5K -> heavily discounted)
+  B. Spread filter (>0.5% spread -> cap at 5, >1% -> mark TOO_ILLIQUID)
+  C. Time-of-day multiplier (4-6AM x0.6, 6-8AM x0.85, 8-9:30AM x1.1)
 """
 import yfinance as yf
 import pandas as pd
 import numpy as np
+from datetime import datetime, time, timezone, timedelta
 import warnings
 warnings.filterwarnings('ignore')
 
 
 class PreMarketEngine:
-    """5-layer pre-market institutional signal engine."""
+    """5-layer pre-market institutional signal engine with Tier 1 accuracy filters."""
 
+    @staticmethod
+    def _get_et_time():
+        """Get current Eastern Time (handles DST)."""
+        try:
+            utc = datetime.now(timezone.utc)
+            month = utc.month
+            offset = timedelta(hours=-4) if 3 <= month <= 10 else timedelta(hours=-5)
+            et = utc.astimezone(timezone(offset))
+            return et.time()
+        except Exception:
+            return None
 
+    @staticmethod
+    def _time_of_day_multiplier():
+        """Tier 1C: time-of-day confidence multiplier.
+        4-6 AM: x0.6 (very low participation), 6-8 AM: x0.85 (building up),
+        8-9:30 AM: x1.1 (approaching open, more reliable).
+        """
+        t = PreMarketEngine._get_et_time()
+        if t is None:
+            return 1.0
+        if t < time(6, 0):
+            return 0.6
+        elif t < time(8, 0):
+            return 0.85
+        elif t <= time(9, 30):
+            return 1.1
+        return 0.85
+
+    @staticmethod
+    def _get_spread(symbol):
+        """Tier 1B: get bid/ask spread for the symbol. Returns (spread_pct, too_wide, too_loose)."""
+        try:
+            t = yf.Ticker(symbol)
+            info = t.info or {}
+            bid = info.get('bid', 0)
+            ask = info.get('ask', 0)
+            if bid and ask and bid > 0:
+                mid = (bid + ask) / 2
+                spread_pct = ((ask - bid) / mid) * 100 if mid else 0
+                return round(spread_pct, 3), spread_pct > 1.0, spread_pct > 0.5
+            return 0.0, False, False
+        except Exception:
+            return 0.0, False, False
     @staticmethod
     def _get_premarket_bars(symbol, lookback_days=5):
         """Fetch today pre-market + previous regular bars."""
@@ -45,7 +94,6 @@ class PreMarketEngine:
         except Exception:
             return None, None
 
-
     @staticmethod
     def gap(symbol):
         """Layer 26: Pre-Market Gap (10 pts)."""
@@ -57,7 +105,6 @@ class PreMarketEngine:
             last_price = float(pm["Close"].iloc[-1])
             gap_pct = ((last_price - pc) / pc) * 100
             pm_vol = int(pm["Volume"].sum())
-            illiquid = pm_vol < 10000
             if gap_pct >= 5: sig, sc = "EXTREME_GAP_UP", 8
             elif gap_pct >= 2: sig, sc = "STRONG_GAP_UP", 10
             elif gap_pct >= 0.5: sig, sc = "GAP_UP", 8
@@ -65,11 +112,8 @@ class PreMarketEngine:
             elif gap_pct > -2: sig, sc = "GAP_DOWN", 3
             elif gap_pct > -5: sig, sc = "STRONG_GAP_DOWN", 1
             else: sig, sc = "EXTREME_GAP_DOWN", 2
-            if illiquid:
-                sc = min(sc, 5)
-                sig += "_ILLIQUID"
             return {"gap_pct": round(gap_pct, 2), "premarket_price": round(last_price, 2),
-                    "premarket_volume": pm_vol, "signal": sig, "score": sc, "illiquid": illiquid}
+                    "premarket_volume": pm_vol, "signal": sig, "score": sc}
         except Exception:
             return {"signal": "ERROR", "score": 5}
 
@@ -83,20 +127,18 @@ class PreMarketEngine:
             typical = (pm["High"] + pm["Low"] + pm["Close"]) / 3
             cum_tp_vol = (typical * pm["Volume"]).cumsum()
             cum_vol = pm["Volume"].cumsum()
-            vwap = float((cum_tp_vol / cum_vol).iloc[-1])
+            vwap_val = float((cum_tp_vol / cum_vol).iloc[-1])
             last_price = float(pm["Close"].iloc[-1])
-            dist_pct = ((last_price - vwap) / vwap) * 100 if vwap else 0
+            dist_pct = ((last_price - vwap_val) / vwap_val) * 100 if vwap_val else 0
             if dist_pct >= 1.5: sig, sc = "STRONG_ABOVE_VWAP", 10
             elif dist_pct >= 0.3: sig, sc = "ABOVE_VWAP", 8
             elif dist_pct > -0.3: sig, sc = "AT_VWAP", 5
             elif dist_pct > -1.5: sig, sc = "BELOW_VWAP", 3
             else: sig, sc = "STRONG_BELOW_VWAP", 1
-            return {"vwap": round(vwap, 2), "premarket_price": round(last_price, 2),
+            return {"vwap": round(vwap_val, 2), "premarket_price": round(last_price, 2),
                     "distance_pct": round(dist_pct, 2), "signal": sig, "score": sc}
         except Exception:
             return {"signal": "ERROR", "score": 5}
-
-
     @staticmethod
     def volume(symbol):
         """Layer 28: Pre-Market Volume Ratio (10 pts)."""
@@ -166,7 +208,6 @@ class PreMarketEngine:
         except Exception:
             return {"signal": "ERROR", "score": 5}
 
-
     @staticmethod
     def news(symbol):
         """Layer 30: Pre-Market News Sentiment (10 pts)."""
@@ -219,3 +260,92 @@ class PreMarketEngine:
                     "signal": sig, "score": sc}
         except Exception:
             return {"signal": "ERROR", "score": 5}
+    @staticmethod
+    def _apply_filters(layer_result, layer_name, total_premarket_volume=None,
+                        spread_pct=0.0, spread_too_wide=False, time_mult=1.0):
+        """Apply Tier 1 accuracy filters (A, B, C) to a single layer result.
+
+        A. Liquidity discount: vol < 5K -> scale toward 5 by 70%, < 10K -> 40%, ==0 -> 5
+        B. Spread filter:      > 0.5% -> cap at 5, > 1% -> mark TOO_ILLIQUID
+        C. Time-of-day mult:   scale final score by time_mult (0.6/0.85/1.1)
+        """
+        if not isinstance(layer_result, dict):
+            return layer_result
+        if 'score' not in layer_result:
+            return layer_result
+        result = dict(layer_result)
+        original_score = result.get('score', 5)
+        new_score = original_score
+        # Filter A: Liquidity discount
+        if total_premarket_volume is not None:
+            if total_premarket_volume == 0:
+                new_score = 5
+                result['liquidity_filter'] = 'NO_VOLUME_NEUTRAL'
+            elif total_premarket_volume < 5000:
+                new_score = int(round(original_score + (5 - original_score) * 0.7))
+                result['liquidity_filter'] = f'VERY_LOW_VOL_{total_premarket_volume}'
+            elif total_premarket_volume < 10000:
+                new_score = int(round(original_score + (5 - original_score) * 0.4))
+                result['liquidity_filter'] = f'LOW_VOL_{total_premarket_volume}'
+        # Filter B: Spread filter
+        if spread_too_wide:
+            new_score = 5
+            result['spread_filter'] = f'TOO_WIDE_{spread_pct:.2f}%_EXCLUDED'
+            result['signal'] = 'TOO_ILLIQUID'
+        elif spread_pct > 0.5:
+            new_score = min(new_score, 5)
+            result['spread_filter'] = f'WIDE_SPREAD_{spread_pct:.2f}%'
+        # Filter C: Time-of-day multiplier
+        if time_mult < 1.0:
+            new_score = int(round(new_score + (5 - new_score) * (1 - time_mult)))
+            result['time_filter'] = f'TOO_EARLY_x{time_mult}'
+        elif time_mult > 1.0:
+            if new_score > 5:
+                new_score = int(round(5 + (new_score - 5) * time_mult))
+            else:
+                new_score = int(round(5 - (5 - new_score) * time_mult))
+            result['time_filter'] = f'LATE_PREMARKET_x{time_mult}'
+        new_score = max(0, min(10, new_score))
+        result['score'] = new_score
+        result['original_score'] = original_score
+        result['filters_applied'] = True
+        return result
+
+    @staticmethod
+    def get_filtered_premarket_data(symbol):
+        """Master function: runs all 5 layers + applies Tier 1 filters.
+        Returns dict with all 5 layer results + filter context (_meta).
+        This is what `AdvancedSignalEngine.analyze()` should call.
+        """
+        try:
+            spread_pct, spread_too_wide, _ = PreMarketEngine._get_spread(symbol)
+            time_mult = PreMarketEngine._time_of_day_multiplier()
+            et_time = PreMarketEngine._get_et_time()
+            gap_r = PreMarketEngine.gap(symbol)
+            vwap_r = PreMarketEngine.vwap(symbol)
+            vol_r = PreMarketEngine.volume(symbol)
+            range_r = PreMarketEngine.range_break(symbol)
+            news_r = PreMarketEngine.news(symbol)
+            total_pm_vol = None
+            if isinstance(gap_r, dict):
+                pmv = gap_r.get('premarket_volume')
+                if pmv is not None:
+                    total_pm_vol = pmv
+            filtered = {
+                'gap': PreMarketEngine._apply_filters(gap_r, 'gap', total_pm_vol, spread_pct, spread_too_wide, time_mult),
+                'vwap': PreMarketEngine._apply_filters(vwap_r, 'vwap', total_pm_vol, spread_pct, spread_too_wide, time_mult),
+                'volume': PreMarketEngine._apply_filters(vol_r, 'volume', total_pm_vol, spread_pct, spread_too_wide, time_mult),
+                'range_break': PreMarketEngine._apply_filters(range_r, 'range', total_pm_vol, spread_pct, spread_too_wide, time_mult),
+                'news': PreMarketEngine._apply_filters(news_r, 'news', total_pm_vol, spread_pct, spread_too_wide, time_mult),
+            }
+            filtered['_meta'] = {
+                'spread_pct': spread_pct,
+                'spread_too_wide': spread_too_wide,
+                'time_multiplier': time_mult,
+                'et_time': et_time.strftime('%H:%M:%S') if et_time else None,
+                'total_premarket_volume': total_pm_vol,
+                'filters_active': True,
+            }
+            return filtered
+        except Exception as e:
+            return {'error': str(e), '_meta': {'filters_active': False}}

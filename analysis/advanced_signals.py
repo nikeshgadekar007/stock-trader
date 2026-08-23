@@ -221,29 +221,30 @@ class AdvancedSignalEngine:
         premarket_signal = None
 
         # Pre-Market Layer Integration (active when include_premarket=True)
+        # Tier 1 accuracy filters applied via get_filtered_premarket_data()
         if include_premarket:
             try:
                 from analysis.premarket_engine import PreMarketEngine
                 pe = PreMarketEngine()
-                premarket_data['gap'] = pe.gap(symbol)
-                premarket_data['vwap'] = pe.vwap(symbol)
-                premarket_data['volume'] = pe.volume(symbol)
-                premarket_data['range_break'] = pe.range_break(symbol)
-                premarket_data['news'] = pe.news(symbol)
-                # Add 5 pre-market layers (each 0-10, total 0-50)
-                premarket_score = sum(v.get('score', 5) for v in premarket_data.values())
-                # Adjust total_score: confluence normally -100..100, premarket 0..50
-                # Pre-market BUY bias: gap_up + above_vwap + high_volume = bullish
-                pm_bias = (premarket_data['gap'].get('score', 5) - 5) + \
-                          (premarket_data['vwap'].get('score', 5) - 5) + \
-                          (premarket_data['volume'].get('score', 5) - 5) + \
-                          (premarket_data['range_break'].get('score', 5) - 5) + \
-                          (premarket_data['news'].get('score', 5) - 5)
-                total_score = total_score + (pm_bias * 5)  # scale PM bias to ±25
-                # Determine PM signal direction
-                if pm_bias >= 8: premarket_signal = 'PM_BULLISH'
-                elif pm_bias <= -8: premarket_signal = 'PM_BEARISH'
-                else: premarket_signal = 'PM_NEUTRAL'
+                premarket_data = pe.get_filtered_premarket_data(symbol)
+                if 'error' not in premarket_data:
+                    # Use the filtered layer scores (post-Tier-1-filters)
+                    premarket_score = sum(
+                        premarket_data[k].get('score', 5)
+                        for k in ['gap', 'vwap', 'volume', 'range_break', 'news']
+                    )
+                    # PM bias: how much does pre-market agree with bullish/bearish?
+                    pm_bias = sum(
+                        premarket_data[k].get('score', 5) - 5
+                        for k in ['gap', 'vwap', 'volume', 'range_break', 'news']
+                    )
+                    total_score = total_score + (pm_bias * 5)
+                    if pm_bias >= 8: premarket_signal = 'PM_BULLISH'
+                    elif pm_bias <= -8: premarket_signal = 'PM_BEARISH'
+                    else: premarket_signal = 'PM_NEUTRAL'
+                else:
+                    premarket_data = {'error': premarket_data.get('error', 'unknown')}
+                    premarket_signal = 'PM_ERROR'
             except Exception as e:
                 premarket_data = {'error': str(e)}
                 premarket_signal = 'PM_ERROR'
