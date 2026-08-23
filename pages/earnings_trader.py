@@ -146,7 +146,7 @@ def scan_earnings(symbols):
 if scan_btn or 'earnings_results' not in st.session_state:
     with st.spinner(f"Scanning {min(len(symbols), max_symbols)} stocks for earnings data..."):
         st.session_state.earnings_results = scan_earnings(symbols[:max_symbols])
-        st.session_state.earnings_symbols = symbols[:max_symbols]
+        st.session_state.last_scanned_symbols = symbols[:max_symbols]
 
 results = st.session_state.get('earnings_results', [])
 if not results:
