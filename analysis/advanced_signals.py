@@ -204,11 +204,11 @@ class AdvancedSignalEngine:
         momentum['supertrend_signal'] = supertrend['signal']
         return momentum
 
-    def analyze(self, symbol: str) -> Dict:
+    def analyze(self, symbol: str, include_premarket: bool = False) -> Dict:
         data = self.get_multi_timeframe_data(symbol)
         if not data:
             return {'error': 'No data available'}
-        
+
         confluence = self.calculate_timeframe_confluence(data)
         primary_df = list(data.values())[0]
         patterns = self.detect_patterns(primary_df)
@@ -216,21 +216,62 @@ class AdvancedSignalEngine:
         ema_strategy = self._calculate_ema_triple(primary_df)
 
         total_score = confluence['total_score'] + patterns['score']
+        premarket_data = {}
+        premarket_score = 0
+        premarket_signal = None
+
+        # Pre-Market Layer Integration (active when include_premarket=True)
+        if include_premarket:
+            try:
+                from analysis.premarket_engine import PreMarketEngine
+                pe = PreMarketEngine()
+                premarket_data['gap'] = pe.gap(symbol)
+                premarket_data['vwap'] = pe.vwap(symbol)
+                premarket_data['volume'] = pe.volume(symbol)
+                premarket_data['range_break'] = pe.range_break(symbol)
+                premarket_data['news'] = pe.news(symbol)
+                # Add 5 pre-market layers (each 0-10, total 0-50)
+                premarket_score = sum(v.get('score', 5) for v in premarket_data.values())
+                # Adjust total_score: confluence normally -100..100, premarket 0..50
+                # Pre-market BUY bias: gap_up + above_vwap + high_volume = bullish
+                pm_bias = (premarket_data['gap'].get('score', 5) - 5) + \
+                          (premarket_data['vwap'].get('score', 5) - 5) + \
+                          (premarket_data['volume'].get('score', 5) - 5) + \
+                          (premarket_data['range_break'].get('score', 5) - 5) + \
+                          (premarket_data['news'].get('score', 5) - 5)
+                total_score = total_score + (pm_bias * 5)  # scale PM bias to ±25
+                # Determine PM signal direction
+                if pm_bias >= 8: premarket_signal = 'PM_BULLISH'
+                elif pm_bias <= -8: premarket_signal = 'PM_BEARISH'
+                else: premarket_signal = 'PM_NEUTRAL'
+            except Exception as e:
+                premarket_data = {'error': str(e)}
+                premarket_signal = 'PM_ERROR'
+
         signal = 'HOLD'
         if total_score > 50:
             signal = 'BUY'
         elif total_score < -50:
             signal = 'SELL'
-        
+
+        # If pre-market strongly disagrees, downgrade
+        if include_premarket and premarket_signal == 'PM_BEARISH' and signal == 'BUY':
+            signal = 'HOLD'  # Don't go long when PM is bearish
+        if include_premarket and premarket_signal == 'PM_BULLISH' and signal == 'SELL':
+            signal = 'HOLD'
+
         # Calculate volume data
         volume = self._calculate_volume_data(primary_df)
-        
+
         # Calculate market regime
         regime = self.detect_market_regime(primary_df)
-        
+
         # Calculate signal confidence
         confidence = self.calculate_signal_confidence(momentum, patterns, confluence, volume, regime)
-        
+        if include_premarket:
+            confidence['premarket_score'] = premarket_score
+            confidence['premarket_signal'] = premarket_signal
+
         return {
             'symbol': symbol,
             'signal': signal,
@@ -242,17 +283,19 @@ class AdvancedSignalEngine:
             'current_price': primary_df['Close'].iloc[-1],
             'volume': volume,
             'regime': regime,
-            'confidence': confidence
+            'confidence': confidence,
+            'premarket_data': premarket_data,
+            'premarket_signal': premarket_signal,
         }
     
-    def generate_signal(self, symbol: str) -> Dict:
-        result = self.analyze(symbol)
+    def generate_signal(self, symbol: str, include_premarket: bool = False) -> Dict:
+        result = self.analyze(symbol, include_premarket=include_premarket)
         if 'error' in result:
             return result
-        
+
         current_price = result['current_price']
         signal = result['signal']
-        
+
         atr = self._calculate_atr(list(self.get_multi_timeframe_data(symbol).values())[0])
         
         if signal == 'BUY':

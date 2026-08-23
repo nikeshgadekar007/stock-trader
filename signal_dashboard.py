@@ -1,8 +1,11 @@
-"""Advanced Signal Dashboard with ML, Market Breadth, Intermarket & Backtesting"""
+"""Advanced Signal Dashboard with ML, Market Breadth, Intermarket & Backtesting
+Now with live pre-market integration (4:00-9:30 AM ET) for intraday trading.
+"""
 import streamlit as st
 from analysis.advanced_signals import AdvancedSignalEngine
 from analysis.market_analysis import MarketAnalyzer
 from analysis.intermarket import IntermarketAnalyzer
+from analysis.intraday import get_market_session
 import pandas as pd
 
 DEFAULT_SYMBOLS = [
@@ -21,7 +24,19 @@ DEFAULT_SYMBOLS = [
 
 def render_signal_dashboard():
     st.header("📊 Advanced Intraday Signal Generator")
-    
+
+    # Market Session Banner (live pre-market awareness)
+    session = get_market_session()
+    session_emoji = {"PRE_MARKET": "🟡", "REGULAR_MARKET": "🟢",
+                     "AFTER_HOURS": "🟠", "CLOSED": "⚪"}.get(session, "⚪")
+    session_msg = {
+        "PRE_MARKET": "**PRE-MARKET ACTIVE** (4:00–9:30 AM ET) — 5 live pre-market layers feeding into every signal",
+        "REGULAR_MARKET": "Regular session — intraday + pre-market layers both live",
+        "AFTER_HOURS": "After-hours — pre-market layers still updating for tomorrow",
+        "CLOSED": "Market closed — pre-market resumes 4:00 AM ET",
+    }.get(session, "")
+    st.info(f"{session_emoji} **{session}** — {session_msg}", icon="⏰")
+
     if 'signals_analyzed' not in st.session_state:
         st.session_state.signals_analyzed = False
         st.session_state.buy_signals = []
@@ -44,7 +59,7 @@ def render_signal_dashboard():
     st.markdown("---")
     
     # Advanced Features Toggle
-    with st.expander("⚙️ Advanced Analysis Settings", expanded=False):
+    with st.expander("⚙️ Advanced Analysis Settings", expanded=(session == "PRE_MARKET")):
         col1, col2, col3 = st.columns(3)
         with col1:
             use_ml = st.checkbox("🤖 ML Prediction", value=True, help="Use Machine Learning to predict signal outcomes")
@@ -52,6 +67,12 @@ def render_signal_dashboard():
             use_market = st.checkbox("📊 Market Breadth", value=True, help="Validate signals against market conditions")
         with col3:
             use_backtest = st.checkbox("📈 Backtest Validation", value=True, help="Show historical win rate for similar setups")
+        # Pre-Market Mode toggle - auto-enabled during pre-market session
+        use_premarket = st.checkbox(
+            "🌅 Pre-Market Mode (5 live layers: Gap, VWAP, Volume, Range Break, News)",
+            value=(session == "PRE_MARKET"),
+            help="When ON, adds 5 pre-market institutional layers to every signal. Auto-enables during 4:00-9:30 AM ET. Strongly recommended for intraday trading during pre-market hours."
+        )
     
     st.markdown("---")
     
@@ -103,7 +124,7 @@ def render_signal_dashboard():
         
         for i, symbol in enumerate(symbols):
             status_text.text(f"🔍 Analyzing {symbol} ({i+1}/{total_symbols})...")
-            signal = engine.generate_signal(symbol)
+            signal = engine.generate_signal(symbol, include_premarket=use_premarket)
             if 'error' in signal:
                 error_symbols.append((symbol, signal['error']))
             else:
@@ -164,12 +185,21 @@ def render_signal_dashboard():
                 ml_pred = s.get('ml_prediction', {})
                 backtest = s.get('backtest', {})
                 confidence = s.get('confidence', {})
+                pm = s.get('premarket_data', {}) or {}
+                pm_gap = pm.get('gap', {}).get('gap_pct', None)
+                pm_vwap = pm.get('vwap', {}).get('distance_pct', None)
+                pm_vol = pm.get('volume', {}).get('volume_ratio', None)
+                pm_sig = s.get('premarket_signal', None)
                 table_data.append({
                     'Symbol': s['symbol'],
                     'Signal': s['signal'],
                     'Price': f"${s['current_price']:.2f}",
                     'Score': s['total_score'],
                     'Confidence': f"{confidence.get('confidence', 50):.0f}%",
+                    'PM Bias': pm_sig.replace('PM_', '') if pm_sig else '—',
+                    'PM Gap%': f"{pm_gap:+.2f}" if pm_gap is not None else '—',
+                    'PM VWAP%': f"{pm_vwap:+.2f}" if pm_vwap is not None else '—',
+                    'PM Vol×': f"{pm_vol:.2f}" if pm_vol is not None else '—',
                     'ML Signal': ml_pred.get('ml_signal', '—'),
                     'ML Conf': f"{ml_pred.get('ml_confidence', 0):.0f}%",
                     'Win Rate': f"{backtest.get('win_rate', 0):.0f}%",
@@ -253,6 +283,34 @@ def _render_signal_card(signal, rank, action_type, trading_capital=10000, max_ri
     conf_color = "🟢" if conf_level == 'HIGH' else "🟡" if conf_level == 'MEDIUM' else "🔴"
     st.markdown(f"{conf_color} **Confidence: {conf_value:.0f}%** ({conf_level})")
     
+    # PRE-MARKET LAYERS DISPLAY (shown when pre-market data is available)
+    pm_data = signal.get('premarket_data', {})
+    if pm_data and 'error' not in pm_data and pm_data:
+        pm_signal = signal.get('premarket_signal', 'PM_NEUTRAL')
+        pm_emoji = "🟢" if pm_signal == 'PM_BULLISH' else "🔴" if pm_signal == 'PM_BEARISH' else "⚪"
+        st.markdown(f"{pm_emoji} **Pre-Market Bias: {pm_signal}**")
+        with st.expander("🌅 Pre-Market Live Layers (4:00-9:30 AM ET)", expanded=(session == "PRE_MARKET")):
+            pm_cols = st.columns(5)
+            pm_labels = [
+                ('gap', 'Gap', 'gap_pct'),
+                ('vwap', 'VWAP', 'distance_pct'),
+                ('volume', 'Volume', 'volume_ratio'),
+                ('range_break', 'Range', 'broke_high'),
+                ('news', 'News', 'sentiment'),
+            ]
+            for col_idx, (key, label, metric_key) in enumerate(pm_labels):
+                d = pm_data.get(key, {})
+                score = d.get('score', 5)
+                detail = d.get(metric_key, 'N/A')
+                if metric_key == 'broke_high':
+                    detail = 'YES' if d.get('broke_high') else ('NO' if d.get('broke_low') else '-')
+                if isinstance(detail, float):
+                    detail = f"{detail:.2f}"
+                with pm_cols[col_idx]:
+                    color = "🟢" if score >= 7 else "🔴" if score <= 3 else "⚪"
+                    st.metric(f"{color} {label}", f"{score}/10", delta=str(detail))
+                    st.caption(d.get('signal', 'N/A'))
+
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("Current Price", f"${signal['current_price']:.2f}")
