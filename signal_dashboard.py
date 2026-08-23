@@ -179,123 +179,96 @@ def render_signal_dashboard():
         
         all_signals = st.session_state.buy_signals + st.session_state.hold_signals + st.session_state.sell_signals
         if all_signals:
-            # Build table data
-            table_data = []
-            for s in all_signals:
-                ml_pred = s.get('ml_prediction', {})
-                backtest = s.get('backtest', {})
-                confidence = s.get('confidence', {})
-                # Compute A++ badge: strong signal + high confidence + ML agrees + high ML conf + high win rate
-                sig_action = s['signal']
-                ml_action = ml_pred.get('ml_signal', '—')
-                conf_val = confidence.get('confidence', 50)
-                ml_conf_val = ml_pred.get('ml_confidence', 0)
-                wr_val = backtest.get('win_rate', 0)
-                ml_match = (sig_action == ml_action)
-                a_plus_plus = (
-                    sig_action in ('BUY', 'SELL')
-                    and conf_val >= 75
-                    and ml_match
-                    and ml_conf_val >= 70
-                    and wr_val >= 70
-                )
-                a_plus_badge = '🏆 A++' if a_plus_plus else ('✅ A+' if sig_action in ('BUY', 'SELL') and conf_val >= 70 else '')
-                pm = s.get('premarket_data', {}) or {}
-                pm_gap = pm.get('gap', {}).get('gap_pct', None)
-                pm_vwap = pm.get('vwap', {}).get('distance_pct', None)
-                pm_vol = pm.get('volume', {}).get('volume_ratio', None)
-                pm_sig = s.get('premarket_signal', None)
-                table_data.append({
-                    'Grade': a_plus_badge,
-                    'Symbol': s['symbol'],
-                    'Signal': s['signal'],
-                    'Price': f"${s['current_price']:.2f}",
-                    'Score': s['total_score'],
-                    'Confidence': f"{confidence.get('confidence', 50):.0f}%",
-                    'PM Bias': pm_sig.replace('PM_', '') if pm_sig else '—',
-                    'PM Gap%': f"{pm_gap:+.2f}" if pm_gap is not None else '—',
-                    'PM VWAP%': f"{pm_vwap:+.2f}" if pm_vwap is not None else '—',
-                    'PM Vol×': f"{pm_vol:.2f}" if pm_vol is not None else '—',
-                    'ML Signal': ml_pred.get('ml_signal', '—'),
-                    'ML Conf': f"{ml_pred.get('ml_confidence', 0):.0f}%",
-                    'Win Rate': f"{backtest.get('win_rate', 0):.0f}%",
-                    'R:R': f"{s.get('risk_reward', 0):.1f}x",
-                    'Entry': f"${s['entry']:.2f}",
-                    'Target': f"${s['target']:.2f}",
-                    'Stop Loss': f"${s['stop_loss']:.2f}",
-                })
-            
-            df = pd.DataFrame(table_data)
-            
-            # Build sort-key columns for 6-level priority sort
-            # Priority: Signal direction > Score > Confidence > ML match > ML conf > Win rate
-            df['_sig_priority'] = df['Signal'].map({'BUY': 3, 'SELL': 2, 'HOLD': 1}).fillna(0).astype(int)
-            df['_score'] = df['Score'].astype(int)
-            df['_conf'] = df['Confidence'].str.rstrip('%').astype(float)
-            # ML match: 1 if ML signal agrees with main signal direction, 0 otherwise
-            df['_ml_matches'] = (
-                ((df['Signal'] == 'BUY')  & (df['ML Signal'] == 'BUY'))  |
-                ((df['Signal'] == 'SELL') & (df['ML Signal'] == 'SELL')) |
-                ((df['Signal'] == 'HOLD') & (df['ML Signal'] == 'HOLD'))
-            ).astype(int)
-            df['_ml_conf'] = df['ML Conf'].str.rstrip('%').astype(float)
-            df['_winrate'] = df['Win Rate'].str.rstrip('%').astype(float)
-            df = df.sort_values(
-                ['_sig_priority', '_score', '_conf', '_ml_matches', '_ml_conf', '_winrate'],
-                ascending=[False, False, False, False, False, False]
-            ).drop(
-                columns=['_sig_priority', '_score', '_conf', '_ml_matches', '_ml_conf', '_winrate']
-            ).reset_index(drop=True)
-            
-            # Color-code the Signal column
-            def color_signal(val):
-                if val == 'BUY':
-                    return 'background-color: #d4edda; color: #155724; font-weight: bold'
-                elif val == 'SELL':
-                    return 'background-color: #f8d7da; color: #721c24; font-weight: bold'
-                elif val == 'HOLD':
-                    return 'background-color: #e2e3f1; color: #3730a3; font-weight: bold'
-                return ''
-            
-            styled_df = df.style.map(color_signal, subset=['Signal'])
-            st.dataframe(styled_df, use_container_width=True, hide_index=True)
-            
-            # Download CSV button
-            csv = df.to_csv(index=False)
-            st.download_button(
-                label="📥 Download Signals as CSV",
-                data=csv,
-                file_name="advanced_signals.csv",
-                mime="text/csv",
-            )
-        else:
-            st.info("No signals generated. Click 'Analyze' to scan stocks.")
-    
-    st.markdown("---")
-    
-    tab1, tab2, tab3 = st.tabs(["🟢 BUY Signals", "⚪ HOLD Signals", "🔴 SELL Signals"])
-    
-    with tab1:
-        if st.session_state.buy_signals:
-            for rank, signal in enumerate(st.session_state.buy_signals, 1):
-                _render_signal_card(signal, rank, "BUY", trading_capital, max_risk_amount)
-        else:
-            st.info("No BUY signals found. Click 'Analyze' to scan stocks.")
-    
-    with tab2:
-        if st.session_state.hold_signals:
-            for rank, signal in enumerate(st.session_state.hold_signals, 1):
-                _render_signal_card(signal, rank, "HOLD", trading_capital, max_risk_amount)
-        else:
-            st.info("No HOLD signals found")
-    
-    with tab3:
-        if st.session_state.sell_signals:
-            for rank, signal in enumerate(st.session_state.sell_signals, 1):
-                _render_signal_card(signal, rank, "SELL", trading_capital, max_risk_amount)
-        else:
-            st.info("No SELL signals found")
+            # 3-tab summary table by signal type
+            def _build_table(sigs, label):
+                if not sigs:
+                    st.info(f"No {label} signals in this scan.")
+                    return
+                tdata = []
+                for s in sigs:
+                    ml_pred = s.get('ml_prediction', {})
+                    backtest = s.get('backtest', {})
+                    conf = s.get('confidence', {})
+                    tdata.append({
+                        'Symbol': s['symbol'], 'Signal': s['signal'],
+                        'Price': f"${s['current_price']:.2f}",
+                        'Score': s['total_score'],
+                        'Confidence': f"{conf.get('confidence', 50):.0f}%",
+                        'ML Signal': ml_pred.get('ml_signal', '\u2014'),
+                        'ML Conf': f"{ml_pred.get('ml_confidence', 0):.0f}%",
+                        'Win Rate': f"{backtest.get('win_rate', 0):.0f}%",
+                        'R:R': f"{s.get('risk_reward', 0):.1f}x",
+                    })
+                tdf = pd.DataFrame(tdata)
+                tdf['_s'] = tdf['Score'].astype(int)
+                tdf['_c'] = tdf['Confidence'].str.rstrip('%').astype(float)
+                tdf['_m'] = (((tdf['Signal']=='BUY')&(tdf['ML Signal']=='BUY'))|((tdf['Signal']=='SELL')&(tdf['ML Signal']=='SELL'))|((tdf['Signal']=='HOLD')&(tdf['ML Signal']=='HOLD'))).astype(int)
+                tdf['_mc'] = tdf['ML Conf'].str.rstrip('%').astype(float)
+                tdf['_w'] = tdf['Win Rate'].str.rstrip('%').astype(float)
+                tdf = tdf.sort_values(['_s','_c','_m','_mc','_w'], ascending=[False]*5).drop(columns=['_s','_c','_m','_mc','_w']).reset_index(drop=True)
+                st.dataframe(tdf, use_container_width=True, hide_index=True)
+                csv = tdf.to_csv(index=False)
+                st.download_button(label=f"Download {label} CSV", data=csv, file_name=f"signals_{label.lower()}.csv", mime="text/csv", key=f"dl_{label}")
 
+            t1, t2, t3 = st.tabs([
+                f"BUY ({len(st.session_state.buy_signals)})",
+                f"HOLD ({len(st.session_state.hold_signals)})",
+                f"SELL ({len(st.session_state.sell_signals)})",
+            ])
+            with t1:
+                _build_table(st.session_state.buy_signals, "BUY")
+            with t2:
+                _build_table(st.session_state.hold_signals, "HOLD")
+            with t3:
+                _build_table(st.session_state.sell_signals, "SELL")
+
+            tab1, tab2, tab3 = st.tabs([
+
+                f"🟢 BUY ({len(st.session_state.buy_signals)})",
+
+                f"⚪ HOLD ({len(st.session_state.hold_signals)})",
+
+                f"🔴 SELL ({len(st.session_state.sell_signals)})",
+
+            ])
+
+            with tab1:
+
+                if st.session_state.buy_signals:
+
+                    for rank, signal in enumerate(st.session_state.buy_signals, 1):
+
+                        _render_signal_card(signal, rank, "BUY", trading_capital, max_risk_amount)
+
+                else:
+
+                    st.info("No BUY signals found. Click 'Analyze' to scan stocks.")
+
+            with tab2:
+
+                if st.session_state.hold_signals:
+
+                    for rank, signal in enumerate(st.session_state.hold_signals, 1):
+
+                        _render_signal_card(signal, rank, "HOLD", trading_capital, max_risk_amount)
+
+                else:
+
+                    st.info("No HOLD signals found")
+
+            with tab3:
+
+                if st.session_state.sell_signals:
+
+                    for rank, signal in enumerate(st.session_state.sell_signals, 1):
+
+                        _render_signal_card(signal, rank, "SELL", trading_capital, max_risk_amount)
+
+                else:
+
+                    st.info("No SELL signals found")
+
+    st.markdown("---")
 
 def _render_signal_card(signal, rank, action_type, trading_capital=10000, max_risk_amount=200):
     action = signal['signal']
@@ -776,7 +749,6 @@ def _render_signal_card(signal, rank, action_type, trading_capital=10000, max_ri
                     if macro_rows:
                         macro_df = pd.DataFrame(macro_rows)
                         st.dataframe(macro_df, use_container_width=True, hide_index=True)
-
 
 def _quick_backtest(symbol: str, signal: str) -> dict:
     """Quick backtest to estimate win rate for similar setups"""
