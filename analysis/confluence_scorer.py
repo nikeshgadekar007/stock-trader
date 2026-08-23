@@ -54,7 +54,7 @@ STOCK_SECTOR = {
 
 
 class ConfluenceScorer:
-    """30-Layer Confluence Scoring System. Total = 310 points for short, 290 for long."""
+    """30-Layer Confluence Scoring System. Total = 360 points for short, 340 for long. Now includes 5 Earnings layers (31-35) on top of 25 base + 5 pre-market + 5 institutional edge."""
 
     def __init__(self):
         self.scores = {}
@@ -62,6 +62,7 @@ class ConfluenceScorer:
         self.total_score = 0
         self.signal = 'HOLD'
         self.grade = 'F'
+        self.earnings_window_status = None  # for UI banner
 
     def score_all(self, symbol: str, direction: str = 'long') -> Dict:
         """Run all layers. direction='long'|'short'|'both'"""
@@ -113,6 +114,13 @@ class ConfluenceScorer:
             self.scores['premarket_range'] = self._score_premarket_range(symbol)
             self.scores['premarket_news'] = self._score_premarket_news(symbol)
 
+            # Layer 31-35: EARNINGS INSTITUTIONAL LAYERS
+            self.scores['earnings_beat_streak'] = self._score_earnings_beat_streak(symbol)
+            self.scores['earnings_surprise'] = self._score_earnings_surprise(symbol)
+            self.scores['earnings_revisions'] = self._score_earnings_revisions(symbol)
+            self.scores['earnings_iv'] = self._score_earnings_iv(symbol)
+            self.scores['earnings_window'] = self._score_earnings_window(symbol)
+
             # Layer 21-25: INSTITUTIONAL EDGE STRATEGIES
             self.scores['options_wall'] = self._score_options_wall(symbol, current_price)
             self.scores['vix_term'] = self._score_vix_term()
@@ -124,8 +132,12 @@ class ConfluenceScorer:
             self.scores['opg'] = self._score_opg(symbol)
 
             self.total_score = sum(self.scores.values())
-            self.max_score = 310 if direction in ('short', 'both') else 290
+            self.max_score = 360 if direction in ('short', 'both') else 340
             self.direction = direction
+
+            # Capture earnings window status for UI warning banner
+            ew = self.details.get('earnings_window', {})
+            self.earnings_window_status = ew.get('window', 'NEUTRAL')
 
             # Grading (percentage-based, scales with new 25-layer max)
             pct = self.total_score / self.max_score if self.max_score else 0
@@ -174,7 +186,7 @@ class ConfluenceScorer:
                 'grade': self.grade,
                 'scores': self.scores,
                 'details': self.details,
-                'is_a_plus': self.total_score >= (246 if direction == 'long' else 263),
+                'is_a_plus': self.total_score >= (289 if direction == 'long' else 306),
                 'timestamp': datetime.now().isoformat()
             }
         except Exception as e:
@@ -1209,6 +1221,36 @@ class ConfluenceScorer:
         from .premarket_engine import PreMarketEngine
         r = PreMarketEngine.news(symbol)
         self.details['premarket_news'] = r
+        return r.get('score', 5)
+
+    def _score_earnings_beat_streak(self, symbol) -> int:
+        from .earnings_engine import EarningsEngine
+        r = EarningsEngine.beat_streak(symbol)
+        self.details['earnings_beat_streak'] = r
+        return r.get('score', 5)
+
+    def _score_earnings_surprise(self, symbol) -> int:
+        from .earnings_engine import EarningsEngine
+        r = EarningsEngine.surprise_magnitude(symbol)
+        self.details['earnings_surprise'] = r
+        return r.get('score', 5)
+
+    def _score_earnings_revisions(self, symbol) -> int:
+        from .earnings_engine import EarningsEngine
+        r = EarningsEngine.estimate_revisions(symbol)
+        self.details['earnings_revisions'] = r
+        return r.get('score', 5)
+
+    def _score_earnings_iv(self, symbol) -> int:
+        from .earnings_engine import EarningsEngine
+        r = EarningsEngine.iv_crush_signal(symbol)
+        self.details['earnings_iv'] = r
+        return r.get('score', 5)
+
+    def _score_earnings_window(self, symbol) -> int:
+        from .earnings_engine import EarningsEngine
+        r = EarningsEngine.earnings_window_risk(symbol)
+        self.details['earnings_window'] = r
         return r.get('score', 5)
 
     def _score_options_wall(self, symbol, current_price) -> int:

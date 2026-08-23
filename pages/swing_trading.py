@@ -1,6 +1,6 @@
 """
 Swing Trading Dashboard - 30-Layer Confluence Scoring System
-A+ = 246+ long, 263+ short. 5 Institutional Edge + 5 Pre-Market Live Layers.
+A+ = 289+ long, 306+ short. 5 Institutional Edge + 5 Pre-Market + 5 Earnings Layers (35 total).
 """
 import streamlit as st
 import pandas as pd
@@ -15,7 +15,7 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Swing Trading Signals", page_icon="🎯", layout="wide")
 
 st.title("🎯 Swing Trading — A+ Setups Only")
-st.caption("30-Layer Confluence Scoring System | 290pts Long / 310pts Short | 5 Institutional Edge + 5 Pre-Market Live Layers")
+st.caption("35-Layer Confluence Scoring System | 340pts Long / 360pts Short | 5 Institutional Edge + 5 Pre-Market + 5 Earnings Layers")
 
 # Market session banner
 session = get_market_session()
@@ -39,7 +39,7 @@ with st.sidebar:
     trade_direction = st.radio("📈 Trade Direction", ["Long", "Short"], index=0,
                                 help="Long=buy low sell high. Short=sell high buy low.")
     direction = "long" if trade_direction == "Long" else "short"
-    max_score_label = 310 if direction == "short" else 290
+    max_score_label = 360 if direction == "short" else 340
     min_score = st.slider("Minimum Score Threshold", 60, max_score_label,
                           int(max_score_label * 0.85), 2,
                           help=f"A+ = {int(max_score_label*0.9)}+ (90% of max)")
@@ -64,7 +64,7 @@ with st.sidebar:
         st.markdown(f"| {int(max_score_label*0.86)}-{max_score_label} | A+ | STRONG SHORT |\n| {int(max_score_label*0.76)}-{int(max_score_label*0.86)-1} | A | SHORT |\n| {int(max_score_label*0.66)}-{int(max_score_label*0.76)-1} | B | MODERATE SHORT |\n| {int(max_score_label*0.56)}-{int(max_score_label*0.66)-1} | C | WEAK SHORT |\n| 0-{int(max_score_label*0.56)-1} | D | HOLD |")
 
     st.markdown("---")
-    st.markdown("### 🎯 30 Layers")
+    st.markdown("### 🎯 35 Layers")
     st.markdown("1. Trend (30) 2. S/R (15) 3. Fib (10) 4. Candle (10) 5. Momentum (10) 6. Volume (10)")
     st.markdown("7. Sentiment (10) 8. Fundamentals (10) 9. Regime (5) 10. ML (10) 11. Sector (10)")
     st.markdown("12. ATR Risk (10) 13. Earnings (10) 14. Insider (10) 15. Breakout (10)")
@@ -72,6 +72,8 @@ with st.sidebar:
     st.markdown("20. OPG (10) | **21. Options Wall (10)** | **22. VIX Term (10)** | **23. Cross Asset (10)** | **24. Smart Money (10)** | **25. Liq Sweep (10)**")
     st.markdown("**Pre-Market Live (4:00-9:30 AM ET):**")
     st.markdown("26. PM Gap (10) | 27. PM VWAP (10) | 28. PM Volume (10) | 29. PM Range (10) | 30. PM News (10)")
+    st.markdown("**Earnings Engine:**")
+    st.markdown("31. Beat Streak (10) | 32. Surprise % (10) | 33. Estimate Revisions (10) | 34. IV Crush (10) | 35. Earnings Window (10)")
 
 # Default watchlist
 DEFAULT_SYMBOLS = [
