@@ -185,12 +185,28 @@ def render_signal_dashboard():
                 ml_pred = s.get('ml_prediction', {})
                 backtest = s.get('backtest', {})
                 confidence = s.get('confidence', {})
+                # Compute A++ badge: strong signal + high confidence + ML agrees + high ML conf + high win rate
+                sig_action = s['signal']
+                ml_action = ml_pred.get('ml_signal', '—')
+                conf_val = confidence.get('confidence', 50)
+                ml_conf_val = ml_pred.get('ml_confidence', 0)
+                wr_val = backtest.get('win_rate', 0)
+                ml_match = (sig_action == ml_action)
+                a_plus_plus = (
+                    sig_action in ('BUY', 'SELL')
+                    and conf_val >= 75
+                    and ml_match
+                    and ml_conf_val >= 70
+                    and wr_val >= 70
+                )
+                a_plus_badge = '🏆 A++' if a_plus_plus else ('✅ A+' if sig_action in ('BUY', 'SELL') and conf_val >= 70 else '')
                 pm = s.get('premarket_data', {}) or {}
                 pm_gap = pm.get('gap', {}).get('gap_pct', None)
                 pm_vwap = pm.get('vwap', {}).get('distance_pct', None)
                 pm_vol = pm.get('volume', {}).get('volume_ratio', None)
                 pm_sig = s.get('premarket_signal', None)
                 table_data.append({
+                    'Grade': a_plus_badge,
                     'Symbol': s['symbol'],
                     'Signal': s['signal'],
                     'Price': f"${s['current_price']:.2f}",
@@ -211,11 +227,25 @@ def render_signal_dashboard():
             
             df = pd.DataFrame(table_data)
             
-            # Sort by Score descending (best signals first), then by Confidence
-            df['_sort_score'] = df['Score'].astype(int)
-            df['_sort_conf'] = df['Confidence'].str.rstrip('%').astype(float)
-            df = df.sort_values(['_sort_score', '_sort_conf'], ascending=[False, False])
-            df = df.drop(columns=['_sort_score', '_sort_conf'])
+            # Build sort-key columns for 6-level priority sort
+            # Priority: Signal direction > Score > Confidence > ML match > ML conf > Win rate
+            df['_sig_priority'] = df['Signal'].map({'BUY': 3, 'SELL': 2, 'HOLD': 1}).fillna(0).astype(int)
+            df['_score'] = df['Score'].astype(int)
+            df['_conf'] = df['Confidence'].str.rstrip('%').astype(float)
+            # ML match: 1 if ML signal agrees with main signal direction, 0 otherwise
+            df['_ml_matches'] = (
+                ((df['Signal'] == 'BUY')  & (df['ML Signal'] == 'BUY'))  |
+                ((df['Signal'] == 'SELL') & (df['ML Signal'] == 'SELL')) |
+                ((df['Signal'] == 'HOLD') & (df['ML Signal'] == 'HOLD'))
+            ).astype(int)
+            df['_ml_conf'] = df['ML Conf'].str.rstrip('%').astype(float)
+            df['_winrate'] = df['Win Rate'].str.rstrip('%').astype(float)
+            df = df.sort_values(
+                ['_sig_priority', '_score', '_conf', '_ml_matches', '_ml_conf', '_winrate'],
+                ascending=[False, False, False, False, False, False]
+            ).drop(
+                columns=['_sig_priority', '_score', '_conf', '_ml_matches', '_ml_conf', '_winrate']
+            ).reset_index(drop=True)
             
             # Color-code the Signal column
             def color_signal(val):
