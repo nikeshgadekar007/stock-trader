@@ -1,6 +1,6 @@
 """
 12-Layer Confluence Scoring System for Swing Trading
-Achieves 85-95%+ accuracy by only taking A+ setups (score >= 162/180)
+Achieves 85-95%+ accuracy by only taking A+ setups (85%+ of max)
 Enhanced with Earnings Risk, Insider Activity, Breakouts, Trade Mgmt, and Liquidity
 
 """
@@ -53,7 +53,7 @@ STOCK_SECTOR = {
 
 
 class ConfluenceScorer:
-    """19-Layer Confluence Scoring System. Total = 200 points for short, 180 for long."""
+    """25-Layer Confluence Scoring System. Total = 260 points for short, 240 for long."""
 
     def __init__(self):
         self.scores = {}
@@ -116,60 +116,45 @@ class ConfluenceScorer:
             self.scores['opg'] = self._score_opg(symbol)
 
             self.total_score = sum(self.scores.values())
-            self.max_score = 260 if direction in ('short', 'both') else 190
+            self.max_score = 260 if direction in ('short', 'both') else 240
             self.direction = direction
 
-            # Grading
+            # Grading (percentage-based, scales with new 25-layer max)
+            pct = self.total_score / self.max_score if self.max_score else 0
             if direction == 'short':
-                if self.total_score >= 180:
-                    self.signal = 'STRONG_SHORT'
-                    self.grade = 'A+'
-                elif self.total_score >= 160:
-                    self.signal = 'SHORT'
-                    self.grade = 'A'
-                elif self.total_score >= 140:
-                    self.signal = 'MODERATE_SHORT'
-                    self.grade = 'B'
-                elif self.total_score >= 120:
-                    self.signal = 'WEAK_SHORT'
-                    self.grade = 'C'
-                elif self.total_score <= 20:
-                    self.signal = 'STRONG_BUY'
-                    self.grade = 'A+'
-                elif self.total_score <= 40:
-                    self.signal = 'BUY'
-                    self.grade = 'A'
-                elif self.total_score <= 60:
-                    self.signal = 'MODERATE_BUY'
-                    self.grade = 'B'
+                if pct >= 0.86:
+                    self.signal = 'STRONG_SHORT'; self.grade = 'A+'
+                elif pct >= 0.76:
+                    self.signal = 'SHORT'; self.grade = 'A'
+                elif pct >= 0.66:
+                    self.signal = 'MODERATE_SHORT'; self.grade = 'B'
+                elif pct >= 0.56:
+                    self.signal = 'WEAK_SHORT'; self.grade = 'C'
+                elif pct <= 0.10:
+                    self.signal = 'STRONG_BUY'; self.grade = 'A+'
+                elif pct <= 0.20:
+                    self.signal = 'BUY'; self.grade = 'A'
+                elif pct <= 0.30:
+                    self.signal = 'MODERATE_BUY'; self.grade = 'B'
                 else:
-                    self.signal = 'HOLD'
-                    self.grade = 'D'
+                    self.signal = 'HOLD'; self.grade = 'D'
             else:
-                if self.total_score >= 162:
-                    self.signal = 'STRONG_BUY'
-                    self.grade = 'A+'
-                elif self.total_score >= 144:
-                    self.signal = 'BUY'
-                    self.grade = 'A'
-                elif self.total_score >= 126:
-                    self.signal = 'MODERATE_BUY'
-                    self.grade = 'B'
-                elif self.total_score >= 108:
-                    self.signal = 'WEAK_BUY'
-                    self.grade = 'C'
-                elif self.total_score <= 18:
-                    self.signal = 'STRONG_SELL'
-                    self.grade = 'A+'
-                elif self.total_score <= 36:
-                    self.signal = 'SELL'
-                    self.grade = 'A'
-                elif self.total_score <= 54:
-                    self.signal = 'MODERATE_SELL'
-                    self.grade = 'B'
+                if pct >= 0.85:
+                    self.signal = 'STRONG_BUY'; self.grade = 'A+'
+                elif pct >= 0.76:
+                    self.signal = 'BUY'; self.grade = 'A'
+                elif pct >= 0.66:
+                    self.signal = 'MODERATE_BUY'; self.grade = 'B'
+                elif pct >= 0.57:
+                    self.signal = 'WEAK_BUY'; self.grade = 'C'
+                elif pct <= 0.10:
+                    self.signal = 'STRONG_SELL'; self.grade = 'A+'
+                elif pct <= 0.19:
+                    self.signal = 'SELL'; self.grade = 'A'
+                elif pct <= 0.28:
+                    self.signal = 'MODERATE_SELL'; self.grade = 'B'
                 else:
-                    self.signal = 'HOLD'
-                    self.grade = 'D'
+                    self.signal = 'HOLD'; self.grade = 'D'
 
             return {
                 'symbol': symbol,
@@ -181,7 +166,7 @@ class ConfluenceScorer:
                 'grade': self.grade,
                 'scores': self.scores,
                 'details': self.details,
-                'is_a_plus': self.total_score >= (162 if direction == 'long' else 180),
+                'is_a_plus': self.total_score >= (204 if direction == 'long' else 224),
                 'timestamp': datetime.now().isoformat()
             }
         except Exception as e:
@@ -1225,8 +1210,8 @@ if __name__ == '__main__':
     scorer = ConfluenceScorer()
     symbols = ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META', 'TSLA']
     print(f"{'='*70}")
-    print(f"  17-LAYER CONFLUENCE SCORER - A+ Swing Trade Scanner")
-    print(f"  Max Score: 180 | A+ Threshold: 162 (90%)")
+    print(f"  25-LAYER CONFLUENCE SCORER - A+ Swing Trade Scanner")
+    print(f"  Max Score: 240 (long) / 260 (short) | A+ Threshold: 85%+")
     print(f"{'='*70}")
     for sym in symbols:
         result = scorer.score_all(sym)
@@ -1234,21 +1219,19 @@ if __name__ == '__main__':
             print(f"  {sym}: ERROR - {result['error']}")
             continue
         print(f"\n  {result['symbol']:6s} | Price: ${result['current_price']:>8.2f} | "
-              f"Score: {result['total_score']:>3d}/180 | "
+              f"Score: {result['total_score']:>3d}/{result['max_score']} | "
               f"Signal: {result['signal']:15s} | Grade: {result['grade']}")
         for layer, pts in result['scores'].items():
             bar = '#' * (pts // 2) + '.' * (5 - pts // 2)
             print(f"    {layer:20s}: [{bar}] {pts}pts")
     print(f"\n{'='*70}")
-    print("  A+ Setups (Score >= 162):")
+    print("  A+ Setups (top grade):")
     a_plus = [(s, scorer.score_all(s)) for s in symbols]
     a_plus = [(s, r) for s, r in a_plus if r.get('is_a_plus')]
     if a_plus:
         for sym, r in a_plus:
-            print(f"    {sym}: {r['total_score']}/180 - {r['grade']} {r['signal']}")
+            print(f"    {sym}: {r['total_score']}/{r['max_score']} - {r['grade']} {r['signal']}")
     else:
         print("    None found in this scan")
     print(f"{'='*70}")
 
-
-# ========== LAYER 21: Options Wall (10 points) ==========

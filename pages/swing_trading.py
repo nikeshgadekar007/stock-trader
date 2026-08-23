@@ -1,6 +1,6 @@
 """
-Swing Trading Dashboard - 17-Layer Confluence Scoring System
-Only shows A+ setups (score >= 162/180) for maximum accuracy
+Swing Trading Dashboard - 25-Layer Confluence Scoring System
+Only shows A+ setups (score >= 204/240 long, 224/260 short) for maximum accuracy
 """
 import streamlit as st
 import pandas as pd
@@ -14,7 +14,7 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Swing Trading Signals", page_icon="🎯", layout="wide")
 
 st.title("🎯 Swing Trading — A+ Setups Only")
-st.caption("20-Layer Confluence Scoring System | 190pts Long / 210pts Short")
+st.caption("25-Layer Confluence Scoring System | 240pts Long / 260pts Short | 5 Institutional Edge Layers")
 
 # Auto-refresh
 if "auto_refresh" not in st.session_state:
@@ -44,16 +44,17 @@ with st.sidebar:
     st.markdown("---")
     st.markdown(f"### 📊 Score Guide (/{max_score_label})")
     if direction == "long":
-        st.markdown("| 162-180 | A+ | STRONG BUY |\n| 144-161 | A | BUY |\n| 126-143 | B | MODERATE BUY |\n| 108-125 | C | WEAK BUY |\n| 72-107 | D | HOLD |")
+        st.markdown(f"| {int(max_score_label*0.85)}-{max_score_label} | A+ | STRONG BUY |\n| {int(max_score_label*0.76)}-{int(max_score_label*0.85)-1} | A | BUY |\n| {int(max_score_label*0.66)}-{int(max_score_label*0.76)-1} | B | MODERATE BUY |\n| {int(max_score_label*0.57)}-{int(max_score_label*0.66)-1} | C | WEAK BUY |\n| 0-{int(max_score_label*0.57)-1} | D | HOLD |")
     else:
-        st.markdown("| 180-200 | A+ | STRONG SHORT |\n| 160-179 | A | SHORT |\n| 140-159 | B | MODERATE SHORT |\n| 120-139 | C | WEAK SHORT |\n| 80-119 | D | HOLD |")
-    
+        st.markdown(f"| {int(max_score_label*0.86)}-{max_score_label} | A+ | STRONG SHORT |\n| {int(max_score_label*0.76)}-{int(max_score_label*0.86)-1} | A | SHORT |\n| {int(max_score_label*0.66)}-{int(max_score_label*0.76)-1} | B | MODERATE SHORT |\n| {int(max_score_label*0.56)}-{int(max_score_label*0.66)-1} | C | WEAK SHORT |\n| 0-{int(max_score_label*0.56)-1} | D | HOLD |")
+
     st.markdown("---")
-    st.markdown("### 🎯 19 Layers")
+    st.markdown("### 🎯 25 Layers")
     st.markdown("1. Trend (30) 2. S/R (15) 3. Fib (10) 4. Candle (10) 5. Momentum (10) 6. Volume (10)")
     st.markdown("7. Sentiment (10) 8. Fundamentals (10) 9. Regime (5) 10. ML (10) 11. Sector (10)")
     st.markdown("12. ATR Risk (10) 13. Earnings (10) 14. Insider (10) 15. Breakout (10)")
     st.markdown("16. Trade Mgmt (10) 17. Liquidity (10) 18. Short Int (10) 19. Bearish Div (10)")
+    st.markdown("20. OPG (10) | **21. Options Wall (10)** | **22. VIX Term (10)** | **23. Cross Asset (10)** | **24. Smart Money (10)** | **25. Liq Sweep (10)**")
 
 # Default watchlist
 DEFAULT_SYMBOLS = [
@@ -145,28 +146,30 @@ def _render_swing_card(result, rank):
     """Render a detailed swing trading signal card"""
     symbol = result['symbol']
     score = result['total_score']
+    max_score = result.get('max_score', 240)
     grade = result['grade']
     signal = result['signal']
     price = result['current_price']
     scores = result.get('scores', {})
     details = result.get('details', {})
-    
+
     # Grade emoji
     grade_emoji = "🏆" if grade == 'A+' else "✅" if grade == 'A' else "📊" if grade == 'B' else "👀"
-    
+
     # Score bar
     bar_length = min(score // 2, 90)
     score_bar = "█" * bar_length + "░" * (90 - bar_length)
-    
+
+    progress_val = min(max(score / max_score, 0.0), 1.0)
     st.markdown(f"### {grade_emoji} #{rank} {symbol} — **{signal}** ({grade})")
-    st.markdown(f"**Score: {score}/180**")
-    st.progress(score / 180)
-    
+    st.markdown(f"**Score: {score}/{max_score}**")
+    st.progress(progress_val)
+
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric("Current Price", f"${price:.2f}")
     with col2:
-        st.metric("Total Score", f"{score}/180")
+        st.metric("Total Score", f"{score}/{max_score}")
     with col3:
         st.metric("Grade", f"{grade_emoji} {grade}")
     
