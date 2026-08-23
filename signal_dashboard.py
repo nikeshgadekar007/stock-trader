@@ -189,15 +189,39 @@ def render_signal_dashboard():
                     ml_pred = s.get('ml_prediction', {})
                     backtest = s.get('backtest', {})
                     conf = s.get('confidence', {})
+                    pm = s.get('premarket_data', {}) or {}
+                    # A++ badge
+                    sig_action = s['signal']
+                    ml_action = ml_pred.get('ml_signal', 'HOLD')
+                    conf_val = conf.get('confidence', 50)
+                    ml_conf_val = ml_pred.get('ml_confidence', 0)
+                    wr_val = backtest.get('win_rate', 0)
+                    ml_match = (sig_action == ml_action)
+                    is_app = (sig_action in ('BUY', 'SELL') and conf_val >= 75 and ml_match and ml_conf_val >= 70 and wr_val >= 70)
+                    is_ap = (sig_action in ('BUY', 'SELL') and conf_val >= 70)
+                    grade = '\U0001F3C6 A++' if is_app else ('\u2705 A+' if is_ap else '')
+                    pm_gap = pm.get('gap', {}).get('gap_pct')
+                    pm_vwap = pm.get('vwap', {}).get('distance_pct')
+                    pm_vol = pm.get('volume', {}).get('volume_ratio')
+                    pm_sig = s.get('premarket_signal')
                     tdata.append({
-                        'Symbol': s['symbol'], 'Signal': s['signal'],
+                        'Grade': grade,
+                        'Symbol': s['symbol'],
+                        'Signal': s['signal'],
                         'Price': f"${s['current_price']:.2f}",
                         'Score': s['total_score'],
                         'Confidence': f"{conf.get('confidence', 50):.0f}%",
+                        'PM Bias': pm_sig.replace('PM_', '') if pm_sig else '\u2014',
+                        'PM Gap%': f"{pm_gap:+.2f}" if pm_gap is not None else '\u2014',
+                        'PM VWAP%': f"{pm_vwap:+.2f}" if pm_vwap is not None else '\u2014',
+                        'PM Vol\u00d7': f"{pm_vol:.2f}" if pm_vol is not None else '\u2014',
                         'ML Signal': ml_pred.get('ml_signal', '\u2014'),
                         'ML Conf': f"{ml_pred.get('ml_confidence', 0):.0f}%",
                         'Win Rate': f"{backtest.get('win_rate', 0):.0f}%",
                         'R:R': f"{s.get('risk_reward', 0):.1f}x",
+                        'Entry': f"${s['entry']:.2f}",
+                        'Target': f"${s['target']:.2f}",
+                        'Stop Loss': f"${s['stop_loss']:.2f}",
                     })
                 tdf = pd.DataFrame(tdata)
                 tdf['_s'] = tdf['Score'].astype(int)
