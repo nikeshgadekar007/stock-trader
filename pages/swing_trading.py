@@ -1,11 +1,12 @@
 """
-Swing Trading Dashboard - 25-Layer Confluence Scoring System
-Only shows A+ setups (score >= 204/240 long, 224/260 short) for maximum accuracy
+Swing Trading Dashboard - 30-Layer Confluence Scoring System
+A+ = 246+ long, 263+ short. 5 Institutional Edge + 5 Pre-Market Live Layers.
 """
 import streamlit as st
 import pandas as pd
 from datetime import datetime
 from analysis.confluence_scorer import ConfluenceScorer
+from analysis.intraday import get_market_session
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import yfinance as yf
@@ -14,7 +15,18 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Swing Trading Signals", page_icon="🎯", layout="wide")
 
 st.title("🎯 Swing Trading — A+ Setups Only")
-st.caption("25-Layer Confluence Scoring System | 240pts Long / 260pts Short | 5 Institutional Edge Layers")
+st.caption("30-Layer Confluence Scoring System | 290pts Long / 310pts Short | 5 Institutional Edge + 5 Pre-Market Live Layers")
+
+# Market session banner
+session = get_market_session()
+session_color = {"PRE_MARKET": "🟡", "REGULAR_MARKET": "🟢", "AFTER_HOURS": "🟠", "CLOSED": "⚪"}.get(session, "⚪")
+session_msg = {
+    "PRE_MARKET": "4:00–9:30 AM ET — Live pre-market data is now flowing into Layers 26–30",
+    "REGULAR_MARKET": "9:30 AM–4:00 PM ET — Regular session active, all 30 layers live",
+    "AFTER_HOURS": "4:00–8:00 PM ET — After-hours, pre-market layers still updating",
+    "CLOSED": "Market closed — pre-market resumes 4:00 AM ET",
+}.get(session, "")
+st.info(f"{session_color} **{session}** — {session_msg}", icon="⏰")
 
 # Auto-refresh
 if "auto_refresh" not in st.session_state:
@@ -27,16 +39,19 @@ with st.sidebar:
     trade_direction = st.radio("📈 Trade Direction", ["Long", "Short"], index=0,
                                 help="Long=buy low sell high. Short=sell high buy low.")
     direction = "long" if trade_direction == "Long" else "short"
-    max_score_label = 260 if direction == "short" else 240
+    max_score_label = 310 if direction == "short" else 290
     min_score = st.slider("Minimum Score Threshold", 60, max_score_label,
-                          int(max_score_label * 0.9), 2,
+                          int(max_score_label * 0.85), 2,
                           help=f"A+ = {int(max_score_label*0.9)}+ (90% of max)")
     max_stocks = st.slider("Max Stocks to Scan", 5, 50, 20, 5)
+    pm_mode = st.checkbox("🌅 Pre-Market Mode", value=(session == "PRE_MARKET"),
+                          help="Emphasize pre-market layers (26-30) over EOD layers. Auto-enables during 4:00-9:30 AM ET.")
+    default_refresh = 60 if session == "PRE_MARKET" else 120
     auto_refresh = st.checkbox("🔄 Auto-Refresh", value=st.session_state.auto_refresh,
-                                help="Auto-refresh every 2 minutes")
+                                help=f"Auto-refresh every 2 minutes (60s during pre-market)")
     if auto_refresh:
         st.session_state.auto_refresh = True
-        refresh_interval = st.select_slider("Interval", options=[30, 60, 120, 300], value=120)
+        refresh_interval = st.select_slider("Interval", options=[30, 60, 120, 300], value=default_refresh)
         st.session_state.refresh_interval = refresh_interval
     else:
         st.session_state.auto_refresh = False
@@ -49,12 +64,14 @@ with st.sidebar:
         st.markdown(f"| {int(max_score_label*0.86)}-{max_score_label} | A+ | STRONG SHORT |\n| {int(max_score_label*0.76)}-{int(max_score_label*0.86)-1} | A | SHORT |\n| {int(max_score_label*0.66)}-{int(max_score_label*0.76)-1} | B | MODERATE SHORT |\n| {int(max_score_label*0.56)}-{int(max_score_label*0.66)-1} | C | WEAK SHORT |\n| 0-{int(max_score_label*0.56)-1} | D | HOLD |")
 
     st.markdown("---")
-    st.markdown("### 🎯 25 Layers")
+    st.markdown("### 🎯 30 Layers")
     st.markdown("1. Trend (30) 2. S/R (15) 3. Fib (10) 4. Candle (10) 5. Momentum (10) 6. Volume (10)")
     st.markdown("7. Sentiment (10) 8. Fundamentals (10) 9. Regime (5) 10. ML (10) 11. Sector (10)")
     st.markdown("12. ATR Risk (10) 13. Earnings (10) 14. Insider (10) 15. Breakout (10)")
     st.markdown("16. Trade Mgmt (10) 17. Liquidity (10) 18. Short Int (10) 19. Bearish Div (10)")
     st.markdown("20. OPG (10) | **21. Options Wall (10)** | **22. VIX Term (10)** | **23. Cross Asset (10)** | **24. Smart Money (10)** | **25. Liq Sweep (10)**")
+    st.markdown("**Pre-Market Live (4:00-9:30 AM ET):**")
+    st.markdown("26. PM Gap (10) | 27. PM VWAP (10) | 28. PM Volume (10) | 29. PM Range (10) | 30. PM News (10)")
 
 # Default watchlist
 DEFAULT_SYMBOLS = [
@@ -458,13 +475,18 @@ if results:
             'Breakout': scores.get('breakout', 0),
             'TradeMgmt': scores.get('trade_mgmt', 0),
             'Liquidity': scores.get('liquidity', 0),
-                'OPG': scores.get('opg', 0),
-                'OptWall': scores.get('options_wall', 0),
-                'VIXTerm': scores.get('vix_term', 0),
-                'XAsset': scores.get('cross_asset', 0),
-                'SMI': scores.get('smart_money', 0),
-                'LiqSweep': scores.get('liquidity_sweep', 0),
-            })
+            'OPG': scores.get('opg', 0),
+            'OptWall': scores.get('options_wall', 0),
+            'VIXTerm': scores.get('vix_term', 0),
+            'XAsset': scores.get('cross_asset', 0),
+            'SMI': scores.get('smart_money', 0),
+            'LiqSweep': scores.get('liquidity_sweep', 0),
+            'PMGap': scores.get('premarket_gap', 0),
+            'PMVWAP': scores.get('premarket_vwap', 0),
+            'PMVol': scores.get('premarket_volume', 0),
+            'PMRange': scores.get('premarket_range', 0),
+            'PMNews': scores.get('premarket_news', 0),
+        })
 
         df = pd.DataFrame(table_data)
 

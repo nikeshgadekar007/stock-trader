@@ -69,8 +69,8 @@ class OPGDetector:
     def detect_today(self, symbol) -> Dict:
         try:
             t = yf.Ticker(symbol)
-            intra = t.history(period='5d', interval='5m', auto_adjust=True)
-            daily = t.history(period='1mo', auto_adjust=True)
+            intra = t.history(period='5d', interval='5m', prepost=True, auto_adjust=True)
+            daily = t.history(period='1mo', prepost=False, auto_adjust=True)
             if intra.empty or len(intra) < 6 or daily.empty or len(daily) < 2:
                 return {'symbol': symbol, 'gap': False, 'signal': 'NO_DATA'}
             today = intra.index[-1].date()

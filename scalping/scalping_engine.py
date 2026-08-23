@@ -48,7 +48,7 @@ class ScalpingEngine:
             ticker = yf.Ticker(symbol)
             
             # Get 5-minute data for today
-            df = ticker.history(period="1d", interval="5m")
+            df = ticker.history(period="1d", interval="5m", prepost=True)
             
             if df.empty or len(df) < 10:
                 # Fallback to 15-min compressed
