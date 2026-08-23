@@ -67,8 +67,7 @@ with st.sidebar:
 
 
 # ---- Main scanner function ----
-@st.cache_data(ttl=3600, show_spinner=False)
-def scan_earnings(symbols):
+def scan_earnings(symbols, _bust_cache=False):
     """Scan symbols for earnings data. Returns list of dicts."""
     results = []
     for sym in symbols:
@@ -143,10 +142,17 @@ def scan_earnings(symbols):
 
 
 # ---- Run scan when button is clicked or symbols change ----
+# Cache buster ensures we don't return stale results
+import time as _time
+_scan_cache_buster = int(_time.time())
 if scan_btn or 'earnings_results' not in st.session_state:
-    with st.spinner(f"Scanning {min(len(symbols), max_symbols)} stocks for earnings data..."):
-        st.session_state.earnings_results = scan_earnings(symbols[:max_symbols])
+    with st.spinner("Scanning " + str(min(len(symbols), max_symbols)) + " stocks for earnings data... (may take 30-60 seconds)"):
+        scanned = scan_earnings(symbols[:max_symbols], _bust_cache=_scan_cache_buster)
+        st.session_state.earnings_results = scanned
         st.session_state.last_scanned_symbols = symbols[:max_symbols]
+        st.session_state.last_scan_time = _time.strftime("%H:%M:%S")
+        if not scanned:
+            st.warning("Scan returned no results. Check that your symbols are valid US tickers.")
 
 results = st.session_state.get('earnings_results', [])
 if not results:
