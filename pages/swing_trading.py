@@ -28,6 +28,20 @@ session_msg = {
 }.get(session, "")
 st.info(f"{session_color} **{session}** — {session_msg}", icon="⏰")
 
+# Regime banner (Phase 1 Module 1: Regime-Adaptive Weighting)
+try:
+    from analysis.regime_detector import get_current_regime
+    regime_info = get_current_regime()
+    r_name = regime_info.get('regime', 'UNKNOWN')
+    r_conf = regime_info.get('confidence', 0)
+    r_desc = regime_info.get('description', '')
+    r_emoji = {'BULL_TREND': '🐂', 'BEAR_TREND': '🐻', 'RANGE_BOUND': '↔️',
+                'VOLATILE_SHOCK': '⚡', 'LOW_VOL_GRIND': '😴', 'UNKNOWN': '❓'}.get(r_name, '❓')
+    st.info(f"{r_emoji} **Market Regime: {r_name}** (confidence: {r_conf:.0%}) — {r_desc}",
+            icon="🌐")
+except Exception:
+    pass
+
 # Auto-refresh
 if "auto_refresh" not in st.session_state:
     st.session_state.auto_refresh = False

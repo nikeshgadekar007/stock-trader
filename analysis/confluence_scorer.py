@@ -135,6 +135,24 @@ class ConfluenceScorer:
             self.max_score = 360 if direction in ('short', 'both') else 340
             self.direction = direction
 
+            # Apply regime-adaptive weights (Phase 1 Module 1)
+            try:
+                from .regime_detector import get_current_regime
+                from .adaptive_weights import get_adjusted_total, get_regime_weights
+                regime_info = get_current_regime()
+                self.regime = regime_info.get('regime', 'UNKNOWN')
+                self.regime_confidence = regime_info.get('confidence', 0)
+                self.adjusted_total = get_adjusted_total(self.scores, self.regime)
+                self.regime_weights = get_regime_weights(self.regime)
+                # Blend: 70% raw + 30% regime-adjusted (avoid double-counting)
+                self.blended_total = round(0.7 * self.total_score + 0.3 * self.adjusted_total, 1)
+            except Exception:
+                self.regime = 'UNKNOWN'
+                self.regime_confidence = 0
+                self.adjusted_total = self.total_score
+                self.blended_total = self.total_score
+                self.regime_weights = {}
+
             # Capture earnings window status for UI warning banner
             ew = self.details.get('earnings_window', {})
             self.earnings_window_status = ew.get('window', 'NEUTRAL')
@@ -187,6 +205,10 @@ class ConfluenceScorer:
                 'scores': self.scores,
                 'details': self.details,
                 'is_a_plus': self.total_score >= (289 if direction == 'long' else 306),
+                'regime': getattr(self, 'regime', 'UNKNOWN'),
+                'regime_confidence': getattr(self, 'regime_confidence', 0),
+                'adjusted_total': getattr(self, 'adjusted_total', self.total_score),
+                'blended_total': getattr(self, 'blended_total', self.total_score),
                 'timestamp': datetime.now().isoformat()
             }
         except Exception as e:
