@@ -57,7 +57,7 @@ with st.sidebar:
     min_score = st.slider("Minimum Score Threshold", 60, max_score_label,
                           int(max_score_label * 0.85), 2,
                           help=f"A+ = {int(max_score_label*0.9)}+ (90% of max)")
-    max_stocks = st.slider("Max Stocks to Scan", 5, 50, 20, 5)
+    max_stocks = st.slider("Max Stocks to Scan", 1, 100, 20, 1)
     pm_mode = st.checkbox("🌅 Pre-Market Mode", value=(session == "PRE_MARKET"),
                           help="Emphasize pre-market layers (26-30) over EOD layers. Auto-enables during 4:00-9:30 AM ET.")
     default_refresh = 60 if session == "PRE_MARKET" else 120
@@ -104,16 +104,22 @@ DEFAULT_SYMBOLS = [
     "ETR", "SLB"
 ]
 
-# Input
-symbols_input = st.text_input(
-    "Enter Stock Symbols (comma separated)",
-    ",".join(DEFAULT_SYMBOLS[:max_stocks]),
-    help="US Stock symbols for swing trading analysis",
-    key="swing_symbols"
+# Input - Slider is now the source of truth for scan size
+# Text input is optional: leave empty to use default watchlist
+custom_symbols_input = st.text_input(
+    "Custom Symbols (optional)",
+    "",
+    placeholder="Leave empty to scan top stocks from default watchlist",
+    help="Optional: enter your own comma-separated symbols. Leave empty to scan the default watchlist. The slider above controls how many are scanned.",
+    key="swing_custom_symbols"
 )
 analyze_btn = st.button("🔍 Scan for A+ Setups", type="primary", use_container_width=True, key="swing_scan")
 
-symbols = [s.strip().upper() for s in symbols_input.split(",") if s.strip()]
+# Determine which symbols to scan
+if custom_symbols_input.strip():
+    symbols = [s.strip().upper() for s in custom_symbols_input.split(",") if s.strip()][:max_stocks]
+else:
+    symbols = DEFAULT_SYMBOLS[:max_stocks]
 
 # Trigger auto-refresh
 if st.session_state.auto_refresh:
