@@ -131,8 +131,16 @@ class ConfluenceScorer:
             # Layer 20: Opening Price Gap (10 points)
             self.scores['opg'] = self._score_opg(symbol)
 
+            # Phase 1.5: New high-impact layers (RS vs SPY, Volume Confirm, Trend Persistence, Earnings Hard Filter)
+            self.scores['rs_vs_spy'] = self._score_rs_vs_spy(symbol, df_daily)
+            self.scores['volume_confirm'] = self._score_volume_confirm(df_daily, current_price)
+            self.scores['trend_persistence'] = self._score_trend_persistence(df_daily)
+            # Earnings hard filter is a separate flag - stored in details but heavily penalizes score
+            self.scores['earnings_filter'] = self._score_earnings_hard_filter(symbol)
+
             self.total_score = sum(self.scores.values())
-            self.max_score = 360 if direction in ('short', 'both') else 340
+            # Phase 1.5: 35 layers -> 39 layers (+40 points). Long: 380, Short: 400
+            self.max_score = 400 if direction in ('short', 'both') else 380
             self.direction = direction
 
             # Apply regime-adaptive weights (Phase 1 Module 1)
@@ -204,7 +212,7 @@ class ConfluenceScorer:
                 'grade': self.grade,
                 'scores': self.scores,
                 'details': self.details,
-                'is_a_plus': self.total_score >= (289 if direction == 'long' else 306),
+                'is_a_plus': self.total_score >= (323 if direction == 'long' else 344),
                 'regime': getattr(self, 'regime', 'UNKNOWN'),
                 'regime_confidence': getattr(self, 'regime_confidence', 0),
                 'adjusted_total': getattr(self, 'adjusted_total', self.total_score),
@@ -1308,6 +1316,243 @@ class ConfluenceScorer:
         r = SwingEdgeEngine.sweep(df, current_price)
         self.details['liquidity_sweep'] = r
         return r.get('score', 5)
+# ========== PHASE 1.5: 4 NEW HIGH-IMPACT LAYERS ==========
+
+    def _score_rs_vs_spy(self, symbol: str, df_daily) -> int:
+        """
+        Layer 36: Relative Strength vs SPY (10 points).
+        IBD-style RS ranking. Stock's return relative to SPY over 13w and 52w.
+        Top decile RS (>115) is the strongest predictor of continued outperformance.
+        """
+        try:
+            spy = yf.Ticker('SPY').history(period='6mo', auto_adjust=True)
+            if spy.empty or len(spy) < 60 or df_daily.empty or len(df_daily) < 60:
+                self.details['rs_vs_spy'] = {'error': 'insufficient data'}
+                return 5
+
+            n = min(len(spy), len(df_daily))
+            spy_ret_63 = (spy['Close'].iloc[-1] / spy['Close'].iloc[-min(63, n)] - 1) * 100
+            stock_ret_63 = (df_daily['Close'].iloc[-1] / df_daily['Close'].iloc[-min(63, n)] - 1) * 100
+            rs_rating = 100 + (stock_ret_63 - spy_ret_63)
+            details = {
+                'rs_rating_13w': round(rs_rating, 1),
+                'stock_return_13w_pct': round(stock_ret_63, 2),
+                'spy_return_13w_pct': round(spy_ret_63, 2),
+            }
+
+            try:
+                df_1y = yf.Ticker(symbol).history(period='1y', auto_adjust=True)
+                spy_1y = yf.Ticker('SPY').history(period='1y', auto_adjust=True)
+                if len(df_1y) >= 200 and len(spy_1y) >= 200:
+                    n52 = min(252, len(df_1y), len(spy_1y))
+                    stock_ret_52 = (df_1y['Close'].iloc[-1] / df_1y['Close'].iloc[-n52] - 1) * 100
+                    spy_ret_52 = (spy_1y['Close'].iloc[-1] / spy_1y['Close'].iloc[-n52] - 1) * 100
+                    rs_52 = 100 + (stock_ret_52 - spy_ret_52)
+                    details['rs_rating_52w'] = round(rs_52, 1)
+                    rs_combined = (rs_rating + rs_52) / 2
+                else:
+                    rs_combined = rs_rating
+            except Exception:
+                rs_combined = rs_rating
+
+            details['rs_combined'] = round(rs_combined, 1)
+
+            if rs_combined >= 115:
+                details['signal'] = 'STRONG_OUTPERFORMER'; score = 10
+            elif rs_combined >= 105:
+                details['signal'] = 'OUTPERFORMER'; score = 8
+            elif rs_combined >= 95:
+                details['signal'] = 'IN_LINE'; score = 5
+            elif rs_combined >= 85:
+                details['signal'] = 'LAGGING'; score = 3
+            else:
+                details['signal'] = 'STRONG_LAGGER'; score = 1
+
+            self.details['rs_vs_spy'] = details
+            return score
+        except Exception as e:
+            self.details['rs_vs_spy'] = {'error': str(e)}
+            return 5
+
+    def _score_volume_confirm(self, df_daily, current_price: float) -> int:
+        """
+        Layer 37: Volume Confirmation on Breakout (10 points).
+        Wyckoff-style: requires volume expansion to confirm breakout.
+        Detects volume dry-up before breakout (accumulation).
+        """
+        try:
+            if df_daily.empty or len(df_daily) < 30:
+                self.details['volume_confirm'] = {'error': 'insufficient data'}
+                return 5
+
+            vol_20 = df_daily['Volume'].rolling(20).mean().iloc[-1]
+            recent_vol = df_daily['Volume'].iloc[-1]
+            vol_ratio = recent_vol / vol_20 if vol_20 > 0 else 1.0
+
+            vol_5 = df_daily['Volume'].tail(5).mean()
+            vol_dryup_ratio = vol_5 / vol_20 if vol_20 > 0 else 1.0
+
+            high_20 = df_daily['High'].rolling(20).max().iloc[-1]
+            is_breakout = current_price >= high_20 * 0.98
+
+            high_50 = df_daily['High'].rolling(50).max().iloc[-1] if len(df_daily) >= 50 else high_20
+            is_strong_breakout = current_price >= high_50 * 0.98
+
+            details = {
+                'vol_ratio': round(vol_ratio, 2),
+                'vol_dryup_ratio': round(vol_dryup_ratio, 2),
+                'is_breakout': is_breakout,
+                'is_strong_breakout': is_strong_breakout,
+            }
+
+            if is_strong_breakout and vol_ratio > 1.5:
+                details['signal'] = 'BREAKOUT_CONFIRMED_HIGH_VOL'; score = 10
+            elif is_breakout and vol_ratio > 1.2:
+                details['signal'] = 'BREAKOUT_MODERATE_VOL'; score = 8
+            elif is_breakout and vol_dryup_ratio < 0.7:
+                details['signal'] = 'BREAKOUT_AFTER_DRYUP'; score = 8
+            elif is_breakout and vol_ratio < 0.8:
+                details['signal'] = 'BREAKOUT_LOW_VOL_LIKELY_FALSE'; score = 2
+            elif vol_ratio > 1.3:
+                details['signal'] = 'HIGH_VOL_NO_BREAKOUT'; score = 6
+            else:
+                details['signal'] = 'NORMAL'; score = 5
+
+            self.details['volume_confirm'] = details
+            return score
+        except Exception as e:
+            self.details['volume_confirm'] = {'error': str(e)}
+            return 5
+
+    def _score_trend_persistence(self, df_daily) -> int:
+        """
+        Layer 38: Trend Persistence / Freshness (10 points).
+        Days since uptrend started. Mid-trend (20-60 days) is most reliable.
+        Fresh breakouts (<5 days) and extended trends (60+ days) less reliable.
+        """
+        try:
+            if df_daily.empty or len(df_daily) < 60:
+                self.details['trend_persistence'] = {'error': 'insufficient data'}
+                return 5
+
+            close = df_daily['Close']
+            current = float(close.iloc[-1])
+            ma50 = close.rolling(50).mean().iloc[-1] if len(close) >= 50 else close.mean()
+
+            above_ma = close > ma50
+            days_above = 0
+            for i in range(len(above_ma) - 1, -1, -1):
+                if above_ma.iloc[i]:
+                    days_above += 1
+                else:
+                    break
+
+            if len(close) >= 60:
+                ma50_series = close.rolling(50).mean()
+                ma50_slope = (ma50_series.iloc[-1] - ma50_series.iloc[-20]) / ma50_series.iloc[-20] * 100
+            else:
+                ma50_slope = 0
+
+            details = {'days_above_50ma': days_above, 'ma50_slope_pct': round(ma50_slope, 2)}
+
+            if 20 <= days_above <= 60 and ma50_slope > 0.5:
+                details['signal'] = 'HEALTHY_MID_TREND'; score = 10
+            elif 10 <= days_above < 20 and ma50_slope > 0.3:
+                details['signal'] = 'EARLY_TREND_FORMING'; score = 7
+            elif days_above > 60 and ma50_slope > 0.5:
+                details['signal'] = 'EXTENDED_TREND'; score = 5
+            elif days_above < 5:
+                details['signal'] = 'FRESH_BREAKOUT_UNCONFIRMED'; score = 3
+            elif days_above > 0 and ma50_slope < 0:
+                details['signal'] = 'WEAKENING_TREND'; score = 3
+            else:
+                details['signal'] = 'NO_TREND'; score = 2
+
+            self.details['trend_persistence'] = details
+            return score
+        except Exception as e:
+            self.details['trend_persistence'] = {'error': str(e)}
+            return 5
+
+    def _score_earnings_hard_filter(self, symbol: str) -> int:
+        """
+        Layer 39: Earnings Proximity Hard Filter (10 points).
+        Hard penalty for stocks with imminent earnings (binary event risk).
+        - 0-1 days to earnings: 0 points (auto-fail)
+        - 2-3 days: 1 point (heavy penalty)
+        - 4-7 days: 4 points (some penalty)
+        - Just reported (0-2 days ago): 2 points (drift over)
+        - 8+ days or no data: 10 points (no penalty)
+        """
+        try:
+            from datetime import datetime
+            t = yf.Ticker(symbol)
+            cal = None
+            days_to = None
+            try:
+                cal = t.calendar
+                if isinstance(cal, dict) and 'Earnings Date' in cal:
+                    ed_list = cal['Earnings Date']
+                    if ed_list and len(ed_list) > 0:
+                        ed = ed_list[0]
+                        if hasattr(ed, 'date'):
+                            ed = ed.date()
+                        days_to = (ed - datetime.now().date()).days
+                elif hasattr(cal, 'index') and len(cal.index) > 0:
+                    ed = cal.index[0]
+                    if hasattr(ed, 'date'):
+                        days_to = (ed - datetime.now().date()).days
+            except Exception:
+                pass
+
+            details = {'days_to_earnings': days_to}
+
+            if days_to is None:
+                details['signal'] = 'NO_EARNINGS_DATA'
+                details['note'] = 'Could not determine earnings date - no penalty'
+                self.details['earnings_filter'] = details
+                return 10
+
+            if days_to < 0:
+                days_since = abs(days_to)
+                if days_since <= 2:
+                    details['signal'] = 'JUST_REPORTED_DRIFT_OVER'
+                    details['note'] = 'Earnings reported recently - drift already happened'
+                    self.details['earnings_filter'] = details
+                    return 2
+                else:
+                    details['signal'] = 'OK_NO_NEAR_TERM_RISK'
+                    self.details['earnings_filter'] = details
+                    return 10
+
+            if days_to <= 1:
+                details['signal'] = 'EARNINGS_TODAY_TOMORROW'
+                details['note'] = 'AUTO-SKIP: binary event risk'
+                details['action'] = 'SKIP'
+                self.details['earnings_filter'] = details
+                return 0
+            elif days_to <= 3:
+                details['signal'] = 'EARNINGS_2_TO_3_DAYS'
+                details['note'] = 'Heavy penalty: avoid pre-earnings entries'
+                details['action'] = 'CAUTION'
+                self.details['earnings_filter'] = details
+                return 1
+            elif days_to <= 7:
+                details['signal'] = 'EARNINGS_4_TO_7_DAYS'
+                details['note'] = 'Some penalty: monitor position closely'
+                details['action'] = 'WATCH'
+                self.details['earnings_filter'] = details
+                return 4
+            else:
+                details['signal'] = 'OK_NO_NEAR_TERM_RISK'
+                self.details['earnings_filter'] = details
+                return 10
+
+        except Exception as e:
+            self.details['earnings_filter'] = {'error': str(e)}
+            return 10
+
+
 if __name__ == '__main__':
     scorer = ConfluenceScorer()
     symbols = ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META', 'TSLA']
