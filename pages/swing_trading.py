@@ -55,8 +55,8 @@ with st.sidebar:
     direction = "long" if trade_direction == "Long" else "short"
     max_score_label = 360 if direction == "short" else 340
     min_score = st.slider("Minimum Score Threshold", 60, max_score_label,
-                          int(max_score_label * 0.85), 2,
-                          help=f"A+ = {int(max_score_label*0.9)}+ (90% of max)")
+                          224, 2,
+                          help="B = 224+ (66% of max). Lower threshold = more signals. A+ = 289+")
     max_stocks = st.slider("Max Stocks to Scan", 1, 100, 20, 1)
     pm_mode = st.checkbox("🌅 Pre-Market Mode", value=(session == "PRE_MARKET"),
                           help="Emphasize pre-market layers (26-30) over EOD layers. Auto-enables during 4:00-9:30 AM ET.")
@@ -69,6 +69,11 @@ with st.sidebar:
         st.session_state.refresh_interval = refresh_interval
     else:
         st.session_state.auto_refresh = False
+
+    st.markdown("---")
+    # Top N cap to avoid overwhelming output
+    top_n = st.slider("Show Top N Results", 1, 50, 10, 1,
+                       help="Cap the number of results displayed after sorting by score. Useful when many stocks pass the threshold.")
     
     st.markdown("---")
     st.markdown(f"### 📊 Score Guide (/{max_score_label})")
@@ -467,13 +472,20 @@ else:
 if results:
     st.subheader(f"📋 Swing Trading Signals (Score ≥ {min_score})")
 
+    # Cap to top N (default 10) to avoid overwhelming output
+    if 'top_n' not in dir():
+        top_n = 10
+    display_results = results[:top_n]
+    st.caption(f"Showing top {len(display_results)} of {len(results)} stocks (sorted by score)")
+
     # Build summary table
     table_data = []
-    for r in results:
+    for r in display_results:
         scores = r.get('scores', {})
         table_data.append({
             'Symbol': r['symbol'],
-            'Score': r['total_score'],
+            'Score': f"{r['total_score']}/{r.get('max_score', 340)}",
+            'Pct': f"{r['total_score']/r.get('max_score', 340)*100:.1f}%",
             'Grade': r['grade'],
             'Signal': r['signal'],
             'Price': f"${r['current_price']:.2f}",
