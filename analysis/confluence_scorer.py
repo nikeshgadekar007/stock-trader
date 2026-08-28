@@ -157,19 +157,39 @@ class ConfluenceScorer:
             try:
                 from .regime_detector import get_current_regime
                 from .adaptive_weights import get_adjusted_total, get_regime_weights
+                from .weight_optimizer import WeightOptimizer
                 regime_info = get_current_regime()
                 self.regime = regime_info.get('regime', 'UNKNOWN')
                 self.regime_confidence = regime_info.get('confidence', 0)
                 self.adjusted_total = get_adjusted_total(self.scores, self.regime)
                 self.regime_weights = get_regime_weights(self.regime)
-                # Blend: 70% raw + 30% regime-adjusted (avoid double-counting)
-                self.blended_total = round(0.7 * self.total_score + 0.3 * self.adjusted_total, 1)
+
+                # Phase 4: Apply learned weights from ML optimizer if available
+                learned_data = WeightOptimizer.load_weights()
+                if learned_data and 'weights' in learned_data:
+                    learned_w = learned_data['weights']
+                    learned_total = sum(WeightOptimizer.apply_to_score(self.scores, learned_w).values())
+                    self.learned_adjusted_total = round(learned_total, 1)
+                    self.learned_weights_applied = True
+                    # 3-way blend: 50% raw + 30% regime + 20% learned
+                    self.blended_total = round(
+                        0.5 * self.total_score +
+                        0.3 * self.adjusted_total +
+                        0.2 * self.learned_adjusted_total, 1
+                    )
+                else:
+                    self.learned_adjusted_total = self.total_score
+                    self.learned_weights_applied = False
+                    # Standard 2-way blend
+                    self.blended_total = round(0.7 * self.total_score + 0.3 * self.adjusted_total, 1)
             except Exception:
                 self.regime = 'UNKNOWN'
                 self.regime_confidence = 0
                 self.adjusted_total = self.total_score
                 self.blended_total = self.total_score
                 self.regime_weights = {}
+                self.learned_adjusted_total = self.total_score
+                self.learned_weights_applied = False
 
             # Capture earnings window status for UI warning banner
             ew = self.details.get('earnings_window', {})
@@ -227,6 +247,7 @@ class ConfluenceScorer:
                 'regime_confidence': getattr(self, 'regime_confidence', 0),
                 'adjusted_total': getattr(self, 'adjusted_total', self.total_score),
                 'blended_total': getattr(self, 'blended_total', self.total_score),
+                'learned_weights_applied': getattr(self, 'learned_weights_applied', False),
                 'position_size_pct': round(getattr(self, 'position_size_pct', 1.0), 2),
                 'timestamp': datetime.now().isoformat()
             }
