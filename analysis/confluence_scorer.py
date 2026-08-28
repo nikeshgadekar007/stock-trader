@@ -138,9 +138,19 @@ class ConfluenceScorer:
             # Earnings hard filter is a separate flag - stored in details but heavily penalizes score
             self.scores['earnings_filter'] = self._score_earnings_hard_filter(symbol)
 
+            # Phase 2: Sector Rotation Rank + Entry Type Classifier
+            self.scores['sector_rank'] = self._score_sector_rank(symbol, df_daily)
+            self.scores['entry_type'] = self._score_entry_type(df_daily, current_price)
+
+            # Phase 2: Volatility-adjusted position sizing (separate field, not score)
+            try:
+                self.position_size_pct = self._calculate_position_size(df_daily, current_price)
+            except Exception:
+                self.position_size_pct = 1.0
+
             self.total_score = sum(self.scores.values())
-            # Phase 1.5: 35 layers -> 39 layers (+40 points). Long: 380, Short: 400
-            self.max_score = 400 if direction in ('short', 'both') else 380
+            # Phase 2: 41 score layers (+60 points over Phase 1.5). Long: 400, Short: 420
+            self.max_score = 420 if direction in ('short', 'both') else 400
             self.direction = direction
 
             # Apply regime-adaptive weights (Phase 1 Module 1)
@@ -212,11 +222,12 @@ class ConfluenceScorer:
                 'grade': self.grade,
                 'scores': self.scores,
                 'details': self.details,
-                'is_a_plus': self.total_score >= (323 if direction == 'long' else 344),
+                'is_a_plus': self.total_score >= (340 if direction == 'long' else 361),
                 'regime': getattr(self, 'regime', 'UNKNOWN'),
                 'regime_confidence': getattr(self, 'regime_confidence', 0),
                 'adjusted_total': getattr(self, 'adjusted_total', self.total_score),
                 'blended_total': getattr(self, 'blended_total', self.total_score),
+                'position_size_pct': round(getattr(self, 'position_size_pct', 1.0), 2),
                 'timestamp': datetime.now().isoformat()
             }
         except Exception as e:
@@ -1551,6 +1562,202 @@ class ConfluenceScorer:
         except Exception as e:
             self.details['earnings_filter'] = {'error': str(e)}
             return 10
+
+
+# ========== PHASE 2: NEW LAYERS + POSITION SIZING ==========
+
+    def _score_sector_rank(self, symbol: str, df_daily) -> int:
+        """
+        Layer 40: Sector Rotation Ranking (10 points).
+        Ranks all 11 sectors by 3-month momentum. Boosts leading sectors.
+        """
+        try:
+            sector_etfs = {
+                'Technology': 'XLK', 'Financial': 'XLF', 'Energy': 'XLE',
+                'Healthcare': 'XLV', 'Consumer Cyclical': 'XLY',
+                'Consumer Defensive': 'XLP', 'Industrial': 'XLI',
+                'Materials': 'XLB', 'Real Estate': 'XLRE',
+                'Utilities': 'XLU', 'Communication': 'XLC',
+            }
+
+            sector_perf = {}
+            for sector, etf in sector_etfs.items():
+                try:
+                    etf_df = yf.Ticker(etf).history(period='6mo', auto_adjust=True)
+                    if etf_df.empty or len(etf_df) < 60:
+                        continue
+                    ret_3m = (etf_df['Close'].iloc[-1] / etf_df['Close'].iloc[-60] - 1) * 100
+                    sector_perf[sector] = ret_3m
+                except Exception:
+                    pass
+
+            if not sector_perf:
+                self.details['sector_rank'] = {'error': 'no sector data'}
+                return 5
+
+            sorted_sectors = sorted(sector_perf.items(), key=lambda x: x[1], reverse=True)
+            rankings = {sector: rank + 1 for rank, (sector, _) in enumerate(sorted_sectors)}
+
+            stock_sector = STOCK_SECTOR.get(symbol, 'Unknown')
+            details = {'stock_sector': stock_sector,
+                       'sector_perf': {k: round(v, 2) for k, v in sector_perf.items()}}
+
+            if stock_sector == 'Unknown' or stock_sector not in rankings:
+                details['signal'] = 'UNKNOWN_SECTOR'
+                details['rank'] = None
+                self.details['sector_rank'] = details
+                return 5
+
+            rank = rankings[stock_sector]
+            total_sectors = len(rankings)
+            details['rank'] = rank
+            details['total_sectors'] = total_sectors
+            details['sector_return_3m'] = round(sector_perf[stock_sector], 2)
+
+            if rank <= 3:
+                details['signal'] = 'LEADING_SECTOR'; score = 10
+            elif rank <= 5:
+                details['signal'] = 'MID_TIER_SECTOR'; score = 7
+            elif rank <= 8:
+                details['signal'] = 'LAGGING_SECTOR'; score = 4
+            else:
+                details['signal'] = 'BOTTOM_SECTOR'; score = 2
+
+            self.details['sector_rank'] = details
+            return score
+        except Exception as e:
+            self.details['sector_rank'] = {'error': str(e)}
+            return 5
+
+
+    def _score_entry_type(self, df_daily, current_price: float) -> int:
+        """
+        Layer 41: Entry Type Classifier (10 points).
+        PULLBACK (best), TREND_CONTINUE (good), BREAKOUT (risky).
+        """
+        try:
+            if df_daily.empty or len(df_daily) < 30:
+                self.details['entry_type'] = {'error': 'insufficient data'}
+                return 5
+
+            close = df_daily['Close']
+            high = df_daily['High']
+            low = df_daily['Low']
+
+            ma20 = close.rolling(20).mean().iloc[-1]
+            ma50 = close.rolling(50).mean().iloc[-1] if len(close) >= 50 else ma20
+            high_20 = high.rolling(20).max().iloc[-1]
+            low_20 = low.rolling(20).min().iloc[-1]
+
+            delta = close.diff()
+            gain = delta.where(delta > 0, 0).rolling(14).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
+            rs = gain / loss.replace(0, np.inf)
+            rsi = float(100 - (100 / (1 + rs.iloc[-1])))
+
+            dist_from_high_pct = (current_price - high_20) / high_20 * 100
+            dist_from_low_pct = (current_price - low_20) / low_20 * 100
+            range_20 = high_20 - low_20
+            pos_in_range_pct = (current_price - low_20) / range_20 * 100 if range_20 > 0 else 50
+
+            in_uptrend = current_price > ma50 and ma20 > ma50
+
+            details = {
+                'rsi': round(rsi, 1),
+                'dist_from_20d_high_pct': round(dist_from_high_pct, 2),
+                'pos_in_20d_range_pct': round(pos_in_range_pct, 1),
+                'in_uptrend': in_uptrend,
+            }
+
+            if in_uptrend and -7 <= dist_from_high_pct <= 5 and 40 <= rsi <= 60:
+                details['signal'] = 'PULLBACK_IN_UPTREND'
+                details['description'] = 'Ideal: buying dip in confirmed uptrend'
+                score = 10
+            elif in_uptrend and 5 < dist_from_high_pct <= 15 and 50 <= rsi <= 65:
+                details['signal'] = 'TREND_CONTINUATION'
+                details['description'] = 'Holding trend with modest pullback'
+                score = 8
+            elif dist_from_high_pct >= -1 and rsi >= 60:
+                details['signal'] = 'BREAKOUT_ENTRY'
+                details['description'] = 'Higher risk: buying at/near 20d high'
+                score = 5
+            elif not in_uptrend and 30 <= rsi <= 50:
+                details['signal'] = 'COUNTER_TREND_BOUNCE'
+                details['description'] = 'Risky: bouncing in downtrend'
+                score = 3
+            elif rsi >= 75:
+                details['signal'] = 'OVERBOUGHT_ENTRY'
+                details['description'] = 'Very risky: entering overbought'
+                score = 2
+            elif rsi <= 30:
+                details['signal'] = 'OVERSOLD_BOUNCE'
+                details['description'] = 'Speculative: catching falling knife'
+                score = 4
+            else:
+                details['signal'] = 'NEUTRAL_ENTRY'
+                score = 5
+
+            self.details['entry_type'] = details
+            return score
+        except Exception as e:
+            self.details['entry_type'] = {'error': str(e)}
+            return 5
+
+
+    def _calculate_position_size(self, df_daily, current_price: float) -> float:
+        """
+        Volatility-Adjusted Position Sizing (NOT a score layer).
+        Returns recommended position size as % of capital (0.25% to 2%).
+        Smaller position in high-vol stocks, larger in low-vol.
+        Also scales by signal quality.
+        """
+        try:
+            if df_daily.empty or len(df_daily) < 14:
+                return 1.0
+
+            high = df_daily['High']
+            low = df_daily['Low']
+            close = df_daily['Close']
+            tr = pd.concat([
+                high - low,
+                (high - close.shift()).abs(),
+                (low - close.shift()).abs()
+            ], axis=1).max(axis=1)
+            atr_14 = float(tr.rolling(14).mean().iloc[-1])
+            atr_pct = (atr_14 / current_price) * 100
+
+            details = {'atr_pct': round(atr_pct, 2)}
+
+            if atr_pct < 1.5:
+                details['vol_regime'] = 'LOW_VOL'; size = 1.5
+            elif atr_pct < 2.5:
+                details['vol_regime'] = 'NORMAL_VOL'; size = 1.0
+            elif atr_pct < 4.0:
+                details['vol_regime'] = 'HIGH_VOL'; size = 0.5
+            else:
+                details['vol_regime'] = 'EXTREME_VOL'; size = 0.25
+
+            # Scale by signal quality
+            if hasattr(self, 'total_score') and self.total_score > 0 and hasattr(self, 'max_score') and self.max_score > 0:
+                quality_pct = self.total_score / self.max_score
+                if quality_pct >= 0.85:
+                    size *= 1.2
+                elif quality_pct >= 0.70:
+                    size *= 1.0
+                elif quality_pct >= 0.55:
+                    size *= 0.7
+                else:
+                    size *= 0.4
+
+            size = min(size, 2.0)
+            size = max(size, 0.25)
+
+            details['position_size_pct'] = round(size, 2)
+            self.details['position_sizing'] = details
+            return round(size, 2)
+        except Exception as e:
+            self.details['position_sizing'] = {'error': str(e)}
+            return 1.0
 
 
 if __name__ == '__main__':

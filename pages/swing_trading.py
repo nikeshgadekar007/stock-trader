@@ -15,7 +15,7 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="Swing Trading Signals", page_icon="🎯", layout="wide")
 
 st.title("🎯 Swing Trading — A+ Setups Only")
-st.caption("39-Layer Confluence Scoring System | 380pts Long / 400pts Short | +RS vs SPY, Volume Confirm, Trend Persistence, Earnings Filter")
+st.caption("41-Layer Confluence Scoring System | 400pts Long / 420pts Short | +Sector Rank, Entry Type, Vol-Adj Position Sizing")
 
 # Market session banner
 session = get_market_session()
@@ -53,10 +53,10 @@ with st.sidebar:
     trade_direction = st.radio("📈 Trade Direction", ["Long", "Short"], index=0,
                                 help="Long=buy low sell high. Short=sell high buy low.")
     direction = "long" if trade_direction == "Long" else "short"
-    max_score_label = 400 if direction == "short" else 380
+    max_score_label = 420 if direction == "short" else 400
     min_score = st.slider("Minimum Score Threshold", 60, max_score_label,
-                          251, 2,
-                          help="B = 251+ (66% of max). Lower threshold = more signals. A+ = 323+")
+                          264, 2,
+                          help="B = 264+ (66% of max). Lower threshold = more signals. A+ = 340+")
     max_stocks = st.slider("Max Stocks to Scan", 1, 100, 20, 1)
     pm_mode = st.checkbox("🌅 Pre-Market Mode", value=(session == "PRE_MARKET"),
                           help="Emphasize pre-market layers (26-30) over EOD layers. Auto-enables during 4:00-9:30 AM ET.")
