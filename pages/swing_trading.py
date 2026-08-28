@@ -453,6 +453,24 @@ if analyze_btn and symbols:
             errors.append((symbol, result['error']))
         elif result['total_score'] >= min_score:
             results.append(result)
+            # Phase 3: Log signal to outcome tracker for live performance tracking
+            try:
+                from analysis.signal_tracker import log_signal
+                from analysis.confluence_scorer import STOCK_SECTOR
+                log_signal(
+                    symbol=symbol,
+                    direction=direction,
+                    score=result.get('total_score', 0),
+                    max_score=result.get('max_score', 400),
+                    grade=result.get('grade', 'D'),
+                    signal=result.get('signal', 'HOLD'),
+                    entry_price=result.get('current_price'),
+                    regime=result.get('regime'),
+                    sector=STOCK_SECTOR.get(symbol, None),
+                    layers=result.get('scores', {})
+                )
+            except Exception:
+                pass  # Don't break scan if logging fails
         
         progress_bar.progress((i + 1) / len(symbols))
     
